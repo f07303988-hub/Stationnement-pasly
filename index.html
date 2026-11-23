@@ -263,7 +263,7 @@ tr.clic{cursor:pointer} tr.clic:hover td{background:#f8fafd}
    ===================================================================== */
 const SUPABASE_URL = "https://idswkljjaoajhevgsnfh.supabase.co";
 const SUPABASE_CLE = "sb_publishable_kaRpfQPyPZUKjLkWOEyUTQ_vRKLLU7c";
-const VERSION = "2.0.0";
+const VERSION = "2.1.0";
 const DELAI_INACTIVITE_MIN = 45;
 const APP_LOCAL = "Stationnement Pasly — données locales";
 const APP_REGISTRE = "Stationnement Pasly — registre anonyme";
@@ -567,6 +567,11 @@ const seuilMax = () => paliers()[0] ?? 30;
 const aRenouveler = a => a.statut_effectif === "active" && a.jours_restants <= seuilMax();
 const autoEnCours = vid => S.autos.find(a => a.vehicule_id === vid && ["active", "suspendue"].includes(a.statut));
 const estAdmin = () => S.moi?.role === "admin";
+/* Rues de la commune : chaque rue est une zone de stationnement */
+const rues = () => (S.params.zones || []).slice().sort((a, b) => a.localeCompare(b, "fr"));
+function rueDe(r) { if (!r) return ""; if (r.rue) return r.rue; const a = normAdr(r.adresse); return rues().find(x => a.endsWith(normAdr(x))) || ""; }
+const numDe = r => r?.numero ?? ((String(r?.adresse || "").match(/^\s*(\d+\s*(?:bis|ter)?)/i) || [])[1] || "").trim();
+function optionsRues(sel, vide = "— Choisir la rue —") { const l = rues(); if (sel && !l.includes(sel)) l.unshift(sel); return `<option value="">${vide}</option>` + l.map(x => `<option ${x === sel ? "selected" : ""}>${esc(x)}</option>`).join(""); }
 const majServeur = a => { const i = S.serveur.findIndex(x => x.id === a.id); if (i >= 0) S.serveur[i] = { ...S.serveur[i], ...a }; else S.serveur.push(a); };
 
 async function chargerTout() {
@@ -667,6 +672,9 @@ function rendreTableau(c) {
   });
   const recentesExp = expirees.filter(a => a.jours_restants >= -30).sort((a, b) => b.jours_restants - a.jours_restants);
   const aDemo = L.riverains.some(r => r.demo) || S.serveur.some(a => a.demo);
+  const parRue = rues().map(rue => { const as = S.autos.filter(a => a.zone === rue);
+    return { rue, riv: L.riverains.filter(r => rueDe(r) === rue).length, act: as.filter(a => a.statut_effectif === "active").length, ren: as.filter(aRenouveler).length, sus: as.filter(a => a.statut_effectif === "suspendue").length };
+  }).filter(x => x.riv || x.act || x.sus);
   c.innerHTML = `
   <div class="entete-page"><div><h1>Tableau de bord</h1><div class="mut">${new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</div></div>
     <div class="actions"><a class="btn p" href="#/demande">+ Nouvelle demande</a><a class="btn" href="#/controle">Contrôler</a></div></div>
@@ -689,6 +697,10 @@ function rendreTableau(c) {
     </div>
     ${recentesExp.length ? `<h3 style="margin-top:16px">Expirées depuis moins de 30 jours, non renouvelées</h3><ul class="liste-alerte">${recentesExp.map(a => `<li data-aut="${a.id}"><span>${esc(nomComplet(a))} — <span class="mut">${esc(a.numero)}, expirée le ${fd(a.date_fin)}</span></span>${plaqueHtml(a.immatriculation)}</li>`).join("")}</ul>` : ""}
   </div>
+  <div class="carte"><h2>Autorisations par rue</h2>
+  ${parRue.length ? `<div class="tableau-wrap"><table><thead><tr><th>Rue</th><th>Riverains</th><th>Actives</th><th>À renouveler</th><th>Suspendues</th><th></th></tr></thead><tbody>
+    ${parRue.map(x => `<tr class="clic" data-go="#/autorisations?z=${encodeURIComponent(x.rue)}"><td><b>${esc(x.rue)}</b></td><td>${x.riv}</td><td>${x.act}</td><td>${x.ren ? `<b style="color:var(--orange)">${x.ren}</b>` : "0"}</td><td>${x.sus}</td><td><button class="btn mini" data-imp-rue="${esc(x.rue)}">🖨 Liste</button></td></tr>`).join("")}
+  </tbody></table></div>` : `<div class="vide">Aucune autorisation pour l'instant.</div>`}</div>
   <div class="carte"><h2>Demandes en attente</h2>
   ${attente.length ? `<div class="tableau-wrap"><table><thead><tr><th>N°</th><th>Reçue le</th><th>Riverain</th><th>Véhicule</th><th>Justificatif</th><th></th></tr></thead><tbody>
     ${attente.slice(0, 10).map(d => { const r = riv(d.riverain_id), v = veh(d.vehicule_id); return `<tr><td>${esc(d.numero)}${demoB(d)}</td><td>${fd(d.date_reception)}</td><td>${esc(nomComplet(r))}</td><td>${plaqueHtml(v?.immatriculation)}</td><td>${d.justificatif_verifie ? "✅ Vérifié" : "⏳ À vérifier"}</td><td><button class="btn mini p" data-valider="${d.id}">Traiter</button></td></tr>`; }).join("")}
@@ -699,6 +711,9 @@ function rendreTableau(c) {
   $$("[data-aut]", c).forEach(t => t.onclick = () => ficheAutorisation(t.dataset.aut));
   $$("[data-valider]", c).forEach(b => b.onclick = () => traiterDemande(b.dataset.valider));
   $("#tb-imprimer", c).onclick = imprimerARenouveler;
+  $$("[data-imp-rue]", c).forEach(b => b.onclick = ev => { ev.stopPropagation(); const rue = b.dataset.impRue;
+    imprimerListe(`Autorisations — ${rue}`, ["N°", "Titulaire", "Adresse", "Immatriculation", "Fin", "Statut"],
+      S.autos.filter(a => a.zone === rue && a.statut_effectif !== "annulee").map(a => [a.numero, nomComplet(a), a.adresse, fPlaque(a.immatriculation), fd(a.date_fin), LIB[a.statut_effectif]])); });
 }
 function imprimerARenouveler() {
   const l = S.autos.filter(a => aRenouveler(a) || (a.statut_effectif === "expiree" && a.jours_restants >= -30)).sort((a, b) => a.jours_restants - b.jours_restants);
@@ -743,7 +758,8 @@ function rendreSaisie(z, q) {
       <div class="ligne"><div class="champ" style="max-width:130px"><label>Civilité</label><select id="d-civ"><option></option><option>Mme</option><option>M.</option></select></div>
         <div class="champ"><label class="oblig">Nom</label><input type="text" id="d-nom"></div>
         <div class="champ"><label class="oblig">Prénom</label><input type="text" id="d-prenom"></div></div>
-      <div class="ligne"><div class="champ" style="grid-column:span 2"><label class="oblig">Adresse à Pasly (n° et voie)</label><input type="text" id="d-adr" placeholder="Ex. : 12 rue de l'Église"></div>
+      <div class="ligne"><div class="champ" style="max-width:120px"><label class="oblig">N°</label><input type="text" id="d-num" placeholder="12"></div>
+        <div class="champ" style="grid-column:span 2"><label class="oblig">Rue (Pasly)</label><select id="d-rue">${optionsRues("")}</select></div>
         <div class="champ"><label>Complément</label><input type="text" id="d-comp" placeholder="Bât., appartement…"></div></div>
       <div class="ligne"><div class="champ"><label>Code postal</label><input type="text" id="d-cp" value="02200"></div><div class="champ"><label>Commune</label><input type="text" id="d-com" value="Pasly"></div>
         <div class="champ"><label>Téléphone</label><input type="tel" id="d-tel"></div><div class="champ"><label>Adresse électronique (facultative)</label><input type="email" id="d-mail"></div></div>
@@ -756,7 +772,7 @@ function rendreSaisie(z, q) {
     <div class="ligne">
       <div class="champ"><label class="oblig">Date de réception</label><input type="date" id="d-date" value="${aujourdhui()}" max="${aujourdhui()}"></div>
       <div class="champ"><label class="oblig">Agent ayant enregistré la demande</label><select id="d-agent">${agents}</select></div>
-      <div class="champ"><label>Zone de stationnement</label><select id="d-zone">${zones}</select></div></div>
+      <div class="champ"><label class="oblig">Rue de stationnement autorisée</label><select id="d-zone">${optionsRues(pre ? rueDe(riv(pre)) : "")}</select><div class="aide">Par défaut : la rue du domicile. L'autorisation ne vaut que dans cette rue.</div></div></div>
     <div class="ligne"><div class="champ"><label class="case"><input type="checkbox" id="d-justif"> Justificatif de domicile vérifié</label>
         <select id="d-justif-type" style="margin-top:6px"><option value="">— Type de justificatif —</option>${justifs}</select>
         ${S.params.justificatif_obligatoire ? `<div class="aide">Obligatoire pour valider une demande (paramètre communal).</div>` : ""}</div>
@@ -772,6 +788,8 @@ function rendreSaisie(z, q) {
   $("#rech-riv", f).oninput = e => { const t = e.target.value.toLowerCase(); $$("#sel-riv option", f).forEach(o => o.hidden = !o.textContent.toLowerCase().includes(t)); };
   $$("input[name=statut]", f).forEach(r => r.onchange = () => $("#bloc-motif", f).classList.toggle("cache", $("input[name=statut]:checked", f).value !== "refusee"));
   $("#d-justif-type", f).onchange = e => { if (e.target.value) $("#d-justif", f).checked = true; };
+  $("#d-rue", f).onchange = e => { $("#d-zone", f).value = e.target.value; };
+  $("#sel-riv", f).onchange = e => { const r = riv(e.target.value); if (r && rueDe(r)) $("#d-zone", f).value = rueDe(r); };
   let n = 1;
   $("#ajout-vl", f).onclick = () => { $("#liste-vl", f).insertAdjacentHTML("beforeend", ligneVehicule(n++)); };
   $("#liste-vl", f).addEventListener("click", e => { if (e.target.matches("[data-suppr-vl]")) { if ($$(".vehicule-ligne", f).length > 1) e.target.closest(".vehicule-ligne").remove(); else toast("Au moins un véhicule est nécessaire.", "err"); } });
@@ -810,7 +828,8 @@ async function enregistrerDemande(f) {
   let rivId = existant ? $("#sel-riv", f).value : null;
   const vls = $$(".vehicule-ligne", f).map(l => ({ immatriculation: normPlaque($(".immat", l).value), marque: $(".marque", l).value.trim() || null, modele: $(".modele", l).value.trim() || null, couleur: $(".couleur", l).value.trim() || null }));
   if (existant && !rivId) return toast("Sélectionnez le riverain dans la liste.", "err");
-  if (!existant && (!val("#d-nom") || !val("#d-prenom") || !val("#d-adr"))) return toast("Nom, prénom et adresse sont obligatoires.", "err");
+  if (!existant && (!val("#d-nom") || !val("#d-prenom") || !val("#d-num") || !val("#d-rue"))) return toast("Nom, prénom, numéro et rue sont obligatoires.", "err");
+  if (statut === "validee" && !val("#d-zone")) return toast("Choisissez la rue de stationnement autorisée.", "err");
   if (!val("#d-date")) return toast("La date de réception est obligatoire.", "err");
   if (vls.some(v => v.immatriculation.length < 4)) return toast("Chaque véhicule doit avoir une immatriculation valide.", "err");
   if (new Set(vls.map(v => v.immatriculation)).size !== vls.length) return toast("La même immatriculation est saisie deux fois.", "err");
@@ -829,7 +848,7 @@ async function enregistrerDemande(f) {
   const bilan = [];
   try {
     if (!rivId) {
-      const r = { id: uuid(), civilite: val("#d-civ") || null, nom: val("#d-nom").toUpperCase(), prenom: val("#d-prenom"), adresse: val("#d-adr"), complement: val("#d-comp") || null,
+      const r = { id: uuid(), civilite: val("#d-civ") || null, nom: val("#d-nom").toUpperCase(), prenom: val("#d-prenom"), numero: val("#d-num"), rue: val("#d-rue"), adresse: `${val("#d-num")} ${val("#d-rue")}`, complement: val("#d-comp") || null,
         code_postal: val("#d-cp") || "02200", commune: val("#d-com") || "Pasly", telephone: val("#d-tel") || null, email: val("#d-mail") || null, notes: null, demo: false, created_at: maintenant(), updated_at: maintenant() };
       L.riverains.push(r); rivId = r.id; journalLocal("création", "riverain", nomComplet(r));
     }
@@ -899,13 +918,14 @@ function traiterDemande(id) {
     <dt>Foyer</dt><dd>${nbFoyer} autorisation(s) en cours sur ${+S.params.max_autorisations_foyer || "—"} autorisée(s)</dd></dl>
     <hr style="border:0;border-top:1px solid var(--bord);margin:14px 0">
     <div class="champ"><label class="case"><input type="checkbox" id="t-justif" ${d.justificatif_verifie ? "checked" : ""}> Justificatif de domicile vérifié</label></div>
-    <div class="ligne"><div class="champ"><label>Zone</label><select id="t-zone">${zones}</select></div>
+    <div class="ligne"><div class="champ"><label class="oblig">Rue autorisée</label><select id="t-zone">${optionsRues(rueDe(r))}</select></div>
       <div class="champ"><label>Début de validité</label><input type="date" id="t-deb" value="${aujourdhui()}"></div>
       <div class="champ"><label>Fin de validité</label><input type="date" id="t-fin" value="${calculerFin(aujourdhui())}"><div class="aide">Calculée selon les paramètres ; modifiable.</div></div></div>`,
     `<button class="btn danger" id="t-refus">Refuser…</button><button class="btn" data-fermer>Fermer</button><button class="btn vert" id="t-ok">Valider et délivrer l'autorisation</button>`);
   $("#t-deb", m).onchange = e => { $("#t-fin", m).value = calculerFin(e.target.value); };
   $("#t-ok", m).onclick = async () => {
     try {
+      if (!$("#t-zone", m).value) return toast("Choisissez la rue autorisée.", "err");
       chargement(true);
       d.justificatif_verifie = $("#t-justif", m).checked;
       const aid = await validerDemande(d, { zone: $("#t-zone", m).value, debut: $("#t-deb", m).value || null, fin: $("#t-fin", m).value || null });
@@ -932,12 +952,14 @@ function rendreRiverains(c) {
     <div class="actions"><button class="btn" id="rv-csv">Exporter (CSV)</button><button class="btn" id="rv-imp">🖨 Imprimer</button><a class="btn p" href="#/demande">+ Nouvelle demande</a></div></div>
     ${bandeauStockage()}
     <div class="carte"><div class="filtres"><div><label>Recherche</label><input type="search" id="rv-q" placeholder="Nom, adresse, téléphone, immatriculation…"></div>
+      <div><label>Rue</label><select id="rv-r">${optionsRues("", "Toutes les rues")}</select></div>
       <div><label>Situation</label><select id="rv-f"><option value="">Tous</option><option value="actif">Avec autorisation active</option><option value="sans">Sans autorisation active</option></select></div></div>
     <div class="tableau-wrap" id="rv-tab"></div></div>`;
   brancherBandeau(c);
   const liste = () => {
-    const t = $("#rv-q", c).value.toLowerCase(), f = $("#rv-f", c).value;
+    const t = $("#rv-q", c).value.toLowerCase(), f = $("#rv-f", c).value, ru = $("#rv-r", c).value;
     return [...L.riverains].sort((a, b) => nomComplet(a).localeCompare(nomComplet(b))).filter(r => {
+      if (ru && rueDe(r) !== ru) return false;
       const vs = L.vehicules.filter(v => v.riverain_id === r.id);
       const act = S.autos.some(a => a.riverain_id === r.id && a.statut_effectif === "active");
       if (f === "actif" && !act) return false; if (f === "sans" && act) return false;
@@ -952,7 +974,7 @@ function rendreRiverains(c) {
       <td>${vs.map(v => plaqueHtml(v.immatriculation)).join(" ") || "—"}</td><td>${as.map(a => badge(a.statut_effectif)).join(" ") || '<span class="mut">—</span>'}</td></tr>`; }).join("")}</tbody></table>` : `<div class="vide">Aucun riverain.</div>`;
     $$("[data-riv]", c).forEach(tr => tr.onclick = () => ficheRiverain(tr.dataset.riv));
   };
-  $("#rv-q", c).oninput = dessiner; $("#rv-f", c).onchange = dessiner;
+  $("#rv-q", c).oninput = dessiner; $("#rv-f", c).onchange = dessiner; $("#rv-r", c).onchange = dessiner;
   $("#rv-csv", c).onclick = () => csv(`riverains-${aujourdhui()}.csv`, ["Civilité", "Nom", "Prénom", "Adresse", "Complément", "CP", "Commune", "Téléphone", "Courriel", "Véhicules"],
     liste().map(r => [r.civilite, r.nom, r.prenom, r.adresse, r.complement, r.code_postal, r.commune, r.telephone, r.email, L.vehicules.filter(v => v.riverain_id === r.id && v.actif).map(v => fPlaque(v.immatriculation)).join(", ")]));
   $("#rv-imp", c).onclick = () => imprimerListe("Liste des riverains", ["Riverain", "Adresse", "Téléphone", "Véhicules", "Autorisations actives"],
@@ -966,7 +988,8 @@ function ficheRiverain(id) {
     <form id="fr" autocomplete="off">
     <div class="ligne"><div class="champ" style="max-width:120px"><label>Civilité</label><select id="r-civ"><option></option><option ${r.civilite === "Mme" ? "selected" : ""}>Mme</option><option ${r.civilite === "M." ? "selected" : ""}>M.</option></select></div>
       <div class="champ"><label class="oblig">Nom</label><input type="text" id="r-nom" value="${esc(r.nom)}"></div><div class="champ"><label>Prénom</label><input type="text" id="r-prenom" value="${esc(r.prenom)}"></div></div>
-    <div class="ligne"><div class="champ" style="grid-column:span 2"><label class="oblig">Adresse</label><input type="text" id="r-adr" value="${esc(r.adresse)}"></div><div class="champ"><label>Complément</label><input type="text" id="r-comp" value="${esc(r.complement || "")}"></div></div>
+    <div class="ligne"><div class="champ" style="max-width:120px"><label class="oblig">N°</label><input type="text" id="r-num" value="${esc(numDe(r))}"></div>
+      <div class="champ" style="grid-column:span 2"><label class="oblig">Rue</label><select id="r-rue">${optionsRues(rueDe(r))}</select></div><div class="champ"><label>Complément</label><input type="text" id="r-comp" value="${esc(r.complement || "")}"></div></div>
     <div class="ligne"><div class="champ"><label>Code postal</label><input type="text" id="r-cp" value="${esc(r.code_postal)}"></div><div class="champ"><label>Commune</label><input type="text" id="r-com" value="${esc(r.commune)}"></div>
       <div class="champ"><label>Téléphone</label><input type="tel" id="r-tel" value="${esc(r.telephone || "")}"></div><div class="champ"><label>Courriel</label><input type="email" id="r-mail" value="${esc(r.email || "")}"></div></div>
     <div class="champ"><label>Notes internes</label><textarea id="r-notes">${esc(r.notes || "")}</textarea></div>
@@ -984,13 +1007,22 @@ function ficheRiverain(id) {
   $("#r-dem", m).onclick = () => { fermerModale(); aller(`#/demande?r=${id}`); };
   $("#r-ok", m).onclick = async () => {
     const v = s => $(s, m).value.trim();
-    if (!v("#r-nom") || !v("#r-adr")) return toast("Nom et adresse obligatoires.", "err");
-    const nv = { civilite: v("#r-civ") || null, nom: v("#r-nom").toUpperCase(), prenom: v("#r-prenom"), adresse: v("#r-adr"), complement: v("#r-comp") || null,
+    if (!v("#r-nom") || !v("#r-num") || !v("#r-rue")) return toast("Nom, numéro et rue obligatoires.", "err");
+    const ancienneRue = rueDe(r);
+    const nv = { civilite: v("#r-civ") || null, nom: v("#r-nom").toUpperCase(), prenom: v("#r-prenom"), numero: v("#r-num"), rue: v("#r-rue"), adresse: `${v("#r-num")} ${v("#r-rue")}`, complement: v("#r-comp") || null,
       code_postal: v("#r-cp"), commune: v("#r-com"), telephone: v("#r-tel") || null, email: v("#r-mail") || null, notes: v("#r-notes") || null };
     const diff = {}; for (const k in nv) if ((r[k] ?? null) !== (nv[k] ?? null)) diff[k] = { avant: r[k] ?? null, apres: nv[k] };
     if (!Object.keys(diff).length) return fermerModale();
     Object.assign(r, nv, { updated_at: maintenant() }); journalLocal("modification", "riverain", nomComplet(r), diff);
-    try { await sauverLocal(); toast("Fiche mise à jour.", "ok"); fermerModale(); afficherPage(); } catch (e) { erreur(e); }
+    try {
+      await sauverLocal(); fermerModale();
+      const enCours = S.autos.filter(a => a.riverain_id === id && ["active", "suspendue"].includes(a.statut) && a.zone !== nv.rue);
+      if (nv.rue !== ancienneRue && enCours.length && await confirmer("Changement de rue", `Le riverain habite désormais <b>${esc(nv.rue)}</b>. Reporter cette rue sur ${enCours.length} autorisation(s) en cours (${enCours.map(a => esc(a.numero)).join(", ")}) ? Les macarons devront être réimprimés.`, { ok: "Reporter la nouvelle rue" })) {
+        for (const a of enCours) { await rpc("sta_changer_zone", { p_aut: a.id, p_zone: nv.rue }); majServeur({ id: a.id, zone: nv.rue }); (L.liens[a.id] || (L.liens[a.id] = { numero: a.numero })).macaron_imprime_le = null; }
+        journalLocal("changement de rue", "autorisation", enCours.map(a => a.numero).join(", "), { rue: nv.rue }); await sauverLocal();
+      }
+      toast("Fiche mise à jour.", "ok"); afficherPage();
+    } catch (e) { erreur(e); }
   };
   $("#r-rgpd", m).onclick = () => {
     const as2 = as.map(a => ({ numero: a.numero, immatriculation: fPlaque(a.immatriculation), zone: a.zone, date_delivrance: a.date_delivrance, date_fin: a.date_fin, statut: a.statut_effectif }));
@@ -1095,9 +1127,10 @@ function rendreAutorisations(c, q) {
     <div class="carte"><div class="filtres">
       <div><label>Statut</label><select id="au-f"><option value="">Toutes</option><option value="active">Actives</option><option value="renouveler">À renouveler (≤ ${seuilMax()} j)</option><option value="expiree">Expirées</option><option value="suspendue">Suspendues</option><option value="annulee">Annulées</option><option value="orphelin">Sans fiche sur ce poste</option></select></div>
       <div><label>Recherche</label><input type="search" id="au-q" placeholder="N°, titulaire, adresse, immatriculation…"></div>
-      <div><label>Zone</label><select id="au-z"><option value="">Toutes</option>${(S.params.zones || []).map(z => `<option>${esc(z)}</option>`).join("")}</select></div></div>
+      <div><label>Rue</label><select id="au-z">${optionsRues("", "Toutes les rues")}</select></div></div>
     <div class="tableau-wrap" id="au-tab"></div></div>`;
   if (q.get("f")) $("#au-f", c).value = q.get("f");
+  if (q.get("z")) $("#au-z", c).value = q.get("z");
   const liste = () => {
     const f = $("#au-f", c).value, tl = $("#au-q", c).value.toLowerCase(), t = normPlaque(tl), z = $("#au-z", c).value;
     return S.autos.filter(a => (f === "renouveler" ? aRenouveler(a) : f === "orphelin" ? a.orphelin : !f || a.statut_effectif === f) && (!z || a.zone === z) &&
@@ -1106,7 +1139,7 @@ function rendreAutorisations(c, q) {
   };
   const dessiner = () => {
     const l = liste();
-    $("#au-tab", c).innerHTML = l.length ? `<table><thead><tr><th>N°</th><th>Titulaire</th><th>Véhicule</th><th>Zone</th><th>Délivrée le</th><th>Fin</th><th>Échéance</th><th>Statut</th><th>Macaron</th></tr></thead><tbody>
+    $("#au-tab", c).innerHTML = l.length ? `<table><thead><tr><th>N°</th><th>Titulaire</th><th>Véhicule</th><th>Rue autorisée</th><th>Délivrée le</th><th>Fin</th><th>Échéance</th><th>Statut</th><th>Macaron</th></tr></thead><tbody>
     ${l.map(a => `<tr class="clic" data-aut="${a.id}"><td><b>${esc(a.numero)}</b>${demoB(a)}</td><td>${a.orphelin ? '<span class="mut">Fiche absente de ce poste</span>' : `${esc(nomComplet(a))}<div class="petit mut">${esc(a.adresse)}</div>`}</td><td>${plaqueHtml(a.immatriculation)}</td><td class="petit">${esc(a.zone || "")}</td>
       <td>${fd(a.date_delivrance)}</td><td>${fd(a.date_fin)}</td><td>${a.statut_effectif === "active" ? (a.jours_restants <= seuilMax() ? `<b style="color:var(--orange)">J-${a.jours_restants}</b>` : `<span class="mut">${a.jours_restants} j</span>`) : ""}</td>
       <td>${badge(a.statut_effectif)}</td><td class="petit">${a.macaron_imprime_le ? "✅ " + fd(a.macaron_imprime_le) : (a.statut_effectif === "active" && !a.orphelin ? '<b style="color:var(--orange)">À imprimer</b>' : "")}</td></tr>`).join("")}</tbody></table>` : `<div class="vide">Aucune autorisation.</div>`;
@@ -1114,9 +1147,9 @@ function rendreAutorisations(c, q) {
   };
   ["#au-f", "#au-z"].forEach(s => $(s, c).onchange = dessiner); $("#au-q", c).oninput = dessiner;
   $("#au-ren", c).onclick = imprimerARenouveler;
-  $("#au-imp", c).onclick = () => imprimerListe("Registre des autorisations", ["N°", "Titulaire", "Adresse", "Immatriculation", "Zone", "Délivrée le", "Fin", "Statut"],
+  $("#au-imp", c).onclick = () => imprimerListe("Registre des autorisations" + ($("#au-z", c).value ? " — " + $("#au-z", c).value : ""), ["N°", "Titulaire", "Adresse", "Immatriculation", "Rue autorisée", "Délivrée le", "Fin", "Statut"],
     liste().map(a => [a.numero, nomComplet(a), a.adresse, fPlaque(a.immatriculation), a.zone || "", fd(a.date_delivrance), fd(a.date_fin), LIB[a.statut_effectif]]));
-  $("#au-csv", c).onclick = () => csv(`autorisations-${aujourdhui()}.csv`, ["N°", "Nom", "Prénom", "Adresse", "Téléphone", "Immatriculation", "Marque", "Modèle", "Zone", "Délivrée le", "Fin", "Statut", "Motif", "Renouvellements", "Macaron imprimé le"],
+  $("#au-csv", c).onclick = () => csv(`autorisations-${aujourdhui()}.csv`, ["N°", "Nom", "Prénom", "Adresse", "Téléphone", "Immatriculation", "Marque", "Modèle", "Rue autorisée", "Délivrée le", "Fin", "Statut", "Motif", "Renouvellements", "Macaron imprimé le"],
     liste().map(a => [a.numero, a.orphelin ? "" : a.nom, a.prenom, a.adresse, a.telephone, fPlaque(a.immatriculation), a.marque, a.modele, a.zone, fd(a.date_delivrance), fd(a.date_fin), LIB[a.statut_effectif], a.motif_statut, a.nb_renouvellements, a.macaron_imprime_le ? fd(a.macaron_imprime_le) : ""]));
   dessiner();
 }
@@ -1133,7 +1166,7 @@ function ficheAutorisation(id) {
         <dt>Titulaire</dt><dd>${a.orphelin ? '<span class="mut">Fiche absente de ce poste</span>' : `<a href="#" id="fa-riv">${esc(nomComplet(a))}</a>`}${demoB(a)}</dd>
         <dt>Adresse</dt><dd>${esc(a.adresse)} ${esc(a.complement || "")}</dd>
         <dt>Véhicule</dt><dd>${plaqueHtml(a.immatriculation)} ${esc([a.marque, a.modele, a.couleur].filter(Boolean).join(" "))}</dd>
-        <dt>Zone</dt><dd>${esc(a.zone || "—")}</dd>
+        <dt>Rue autorisée</dt><dd><b>${esc(a.zone || "—")}</b></dd>
         <dt>Délivrée le</dt><dd>${fd(a.date_delivrance)}</dd>
         <dt>Fin de validité</dt><dd><b>${fd(a.date_fin)}</b> ${st === "active" ? `<span class="mut">(${a.jours_restants} j)</span>` : ""}</dd>
         <dt>Renouvellements</dt><dd>${a.nb_renouvellements}</dd>
@@ -1145,6 +1178,7 @@ function ficheAutorisation(id) {
      ${a.statut === "active" || a.statut === "expiree" ? `<button class="btn orange" id="fa-susp">Suspendre</button>` : ""}
      ${a.statut !== "annulee" ? `<button class="btn danger" id="fa-rev">Révoquer</button>` : ""}
      ${a.statut !== "annulee" && !a.orphelin ? `<button class="btn" id="fa-immat">Changer l'immatriculation</button>` : ""}
+     ${a.statut !== "annulee" ? `<button class="btn" id="fa-rue">Changer la rue</button>` : ""}
      ${enCours ? `<button class="btn vert" id="fa-ren">Renouveler</button>` : ""}
      ${st === "active" ? `<button class="btn p" id="fa-mac">🖨 Macaron</button>` : ""}`, { large: true });
   const act = async (fn, msg) => { try { chargement(true); await fn(); await sauverLocal(); chargement(false); fermerModale(); toast(msg, "ok"); afficherPage(); } catch (e) { chargement(false); erreur(e); } };
@@ -1152,6 +1186,12 @@ function ficheAutorisation(id) {
   $("#fa-riv", m)?.addEventListener("click", e => { e.preventDefault(); ficheRiverain(a.riverain_id); });
   $("#fa-mac", m)?.addEventListener("click", () => { fermerModale(); genererMacarons([a.id], "1"); });
   $("#fa-immat", m)?.addEventListener("click", () => { fermerModale(); changerImmatriculation(a.vehicule_id); });
+  $("#fa-rue", m)?.addEventListener("click", () => {
+    const m2 = ouvrirModale(`Rue autorisée — ${a.numero}`, `<div class="champ"><label class="oblig">Rue de stationnement autorisée</label><select id="cz-rue">${optionsRues(a.zone)}</select></div><p class="mut petit">Le macaron (qui indique la rue) devra être réimprimé ; le QR code reste le même.</p>`,
+      `<button class="btn" data-fermer>Annuler</button><button class="btn p" id="cz-ok">Enregistrer</button>`);
+    $("#cz-ok", m2).onclick = () => { const z = $("#cz-rue", m2).value; if (!z) return toast("Choisissez une rue.", "err"); if (z === a.zone) return fermerModale();
+      act(async () => { await rpc("sta_changer_zone", { p_aut: a.id, p_zone: z }); majServeur({ id: a.id, zone: z }); l().macaron_imprime_le = null; journalLocal("changement de rue", "autorisation", a.numero, { avant: a.zone, apres: z }); }, "Rue modifiée. Le macaron est à réimprimer."); };
+  });
   $("#fa-ren", m)?.addEventListener("click", () => {
     const m2 = ouvrirModale(`Renouveler ${a.numero}`, `<p style="margin-top:0">Fin actuelle : <b>${fd(a.date_fin)}</b>. La nouvelle période commence le ${fd(debRen)}.</p>
       <div class="champ"><label>Nouvelle date de fin</label><input type="date" id="rn-fin" value="${calculerFin(debRen)}"></div>
@@ -1175,8 +1215,9 @@ function apercuMacaron(a) {
   return `<div class="macaron"><div class="bande"><small>COMMUNE DE</small><b>${esc(p.commune || "PASLY")}</b></div>
     <div class="titre">${esc(p.mention_macaron || "AUTORISATION RIVERAIN")}</div>${qrSvg(urlControle(a.jeton))}
     <div class="num">N° ${esc(a.numero)}</div>${p.afficher_plaque_macaron !== false && a.immatriculation ? `<div class="petit">Véhicule : <b>${esc(fPlaque(a.immatriculation))}</b></div>` : ""}
+    <div style="color:var(--c1);font-weight:800;font-size:12px;margin-top:3px;text-transform:uppercase">${esc(a.zone || "")}</div>
     <div class="valid"><small>VALABLE JUSQU'AU</small><b>${fd(a.date_fin)}</b></div>
-    <div class="txt">${a.zone ? `Zone : ${esc(a.zone)} — ` : ""}${esc(p.texte_macaron || "")}<br><i>${esc(p.arrete_reference || "")}</i></div></div>`;
+    <div class="txt">Stationnement autorisé uniquement dans la rue indiquée. ${esc(p.texte_macaron || "")}<br><i>${esc(p.arrete_reference || "")}</i></div></div>`;
 }
 function rendreMacarons(c) {
   c.innerHTML = `<div class="entete-page"><div><h1>Génération des macarons</h1><div class="mut">Macarons imprimables au format PDF, avec QR code de vérification sécurisée.</div></div></div>
@@ -1224,15 +1265,17 @@ function dessinerMacaron(doc, a, x0, y0, k) {
   doc.setFillColor(255, 255, 255); doc.rect(qx - 2 * k, qy - 2 * k, taille + 4 * k, taille + 4 * k, "F");
   doc.setFillColor(0, 0, 0);
   for (let r = 0; r < n; r++) { let c = 0; while (c < n) { if (q.isDark(r, c)) { let l = 1; while (c + l < n && q.isDark(r, c + l)) l++; doc.rect(qx + c * cel, qy + r * cel, l * cel + .01, cel + .01, "F"); c += l; } else c++; } }
-  doc.setTextColor(20, 24, 32); doc.setFont("helvetica", "bold"); fs(14); doc.text(`N° ${a.numero}`, cx, Y(93), { align: "center" });
-  if (p.afficher_plaque_macaron !== false && a.immatriculation) { doc.setFont("helvetica", "normal"); fs(9.5); doc.text(`Véhicule : ${fPlaque(a.immatriculation)}`, cx, Y(99), { align: "center" }); }
+  doc.setTextColor(20, 24, 32); doc.setFont("helvetica", "bold"); fs(14); doc.text(`N° ${a.numero}`, cx, Y(92), { align: "center" });
+  if (p.afficher_plaque_macaron !== false && a.immatriculation) { doc.setFont("helvetica", "normal"); fs(9); doc.text(`Véhicule : ${fPlaque(a.immatriculation)}`, cx, Y(97.3), { align: "center" }); }
+  doc.setTextColor(...c1); doc.setFont("helvetica", "bold"); fs(String(a.zone || "").length > 24 ? 8.5 : 10);
+  doc.text(doc.splitTextToSize(String(a.zone || "").toUpperCase(), 86 * k)[0] || "", cx, Y(102.6), { align: "center" });
   const cl = c2.map(v => Math.round(v + (255 - v) * .78));
-  doc.setFillColor(...cl); doc.roundedRect(X(9), Y(102), 77 * k, 13 * k, 2 * k, 2 * k, "F");
-  doc.setTextColor(70, 70, 70); doc.setFont("helvetica", "bold"); fs(6.5); doc.text("VALABLE JUSQU'AU", cx, Y(106.3), { align: "center" });
-  doc.setTextColor(...c1); fs(15); doc.text(fd(a.date_fin), cx, Y(112.6), { align: "center" });
+  doc.setFillColor(...cl); doc.roundedRect(X(9), Y(104.6), 77 * k, 12 * k, 2 * k, 2 * k, "F");
+  doc.setTextColor(70, 70, 70); doc.setFont("helvetica", "bold"); fs(6.5); doc.text("VALABLE JUSQU'AU", cx, Y(108.6), { align: "center" });
+  doc.setTextColor(...c1); fs(15); doc.text(fd(a.date_fin), cx, Y(114.6), { align: "center" });
   doc.setTextColor(60, 60, 60); doc.setFont("helvetica", "normal"); fs(5.8);
-  const lignes = doc.splitTextToSize(`${a.zone ? "Zone : " + a.zone + ". " : ""}${p.texte_macaron || ""}`, 84 * k).slice(0, 3);
-  doc.text(lignes, cx, Y(120), { align: "center", lineHeightFactor: 1.25 });
+  const lignes = doc.splitTextToSize(`Stationnement autorisé uniquement dans la rue indiquée. ${p.texte_macaron || ""}`, 84 * k).slice(0, 3);
+  doc.text(lignes, cx, Y(121.2), { align: "center", lineHeightFactor: 1.25 });
   doc.setFont("helvetica", "italic"); fs(5.5); doc.setTextColor(90, 90, 90);
   doc.text(doc.splitTextToSize(`${p.arrete_reference || ""} — Mairie de Pasly (02200). Contrôle par QR code réservé aux agents habilités.`, 86 * k).slice(0, 2), cx, Y(131), { align: "center", lineHeightFactor: 1.2 });
 }
@@ -1328,10 +1371,10 @@ function afficherResultat(r, methode) {
     <div class="det">${r.resultat === "inconnu" ? `<div><span>${lib}</span><b>${methode === "qr" ? "non reconnu (macaron remplacé, falsifié ou retiré)" : esc(r.recherche)}</b></div>` : `
       <div><span>N° d'autorisation</span><b>${esc(r.numero)}</b></div>
       ${plaque ? `<div><span>Immatriculation</span><span class="plaque">${esc(fPlaque(plaque))}</span></div>` : ""}
-      <div><span>Zone</span><b>${esc(r.zone || "—")}</b></div>
+      <div><span>Rue autorisée</span><b>${esc(r.zone || "—")}</b></div>
       <div><span>Valable jusqu'au</span><b>${fd(r.date_fin)}</b></div>`}
       <div><span>Contrôlé le</span><b>${fdt(r.controle_le)}</b></div></div></div>
-    ${r.resultat !== "inconnu" ? `<div class="bandeau info">Vérifiez que le <b>n° ${esc(r.numero)}</b> et l'immatriculation imprimés sur le macaron correspondent au véhicule contrôlé.</div>` : ""}`;
+    ${r.resultat !== "inconnu" ? `<div class="bandeau info">Vérifiez que le <b>n° ${esc(r.numero)}</b> et l'immatriculation imprimés sur le macaron correspondent au véhicule, et que celui-ci est stationné <b>${esc(r.zone || "")}</b>.</div>` : ""}`;
   S.derniersCtrl.unshift({ h: new Date(), m: methode, v: r.numero || r.recherche || "QR", r: r.resultat }); S.derniersCtrl = S.derniersCtrl.slice(0, 15);
   dessinerHistCtrl(); res.scrollIntoView({ behavior: "smooth", block: "start" });
 }
@@ -1418,7 +1461,7 @@ async function rendreParametres(c) {
       <div class="champ"><label>Autorisations maximum par foyer</label><input type="number" min="1" max="20" id="p-max" value="${esc(p.max_autorisations_foyer ?? 2)}" ${dis}></div>
       <div class="champ"><label>Alertes (jours avant échéance)</label><input type="text" id="p-alertes" value="${esc((p.alertes_jours || [30, 15, 0]).join(", "))}" ${dis}><div class="aide">Ex. : 30, 15, 0 (0 = jour de l'expiration)</div></div></div>
     <div class="champ"><label class="case"><input type="checkbox" id="p-justif" ${p.justificatif_obligatoire ? "checked" : ""} ${dis}> Justificatif de domicile obligatoire pour valider une demande</label></div>
-    <div class="ligne"><div class="champ"><label>Zones de stationnement (une par ligne)</label><textarea id="p-zones" ${dis}>${esc((p.zones || []).join("\n"))}</textarea></div>
+    <div class="ligne"><div class="champ"><label>Rues de la commune — chaque rue est une zone de stationnement (une par ligne)</label><div class="aide" style="margin-bottom:4px">Pré-remplie avec les 43 voies de la Base Adresse Nationale. Retirez celles qui sont hors du périmètre de l'arrêté.</div><textarea id="p-zones" style="min-height:220px" ${dis}>${esc((p.zones || []).join("\n"))}</textarea></div>
       <div class="champ"><label>Types de justificatifs acceptés (un par ligne)</label><textarea id="p-justifs" ${dis}>${esc((p.types_justificatif || []).join("\n"))}</textarea></div></div></div>
   <div class="carte"><h2>Macaron</h2>
     <div class="ligne"><div class="champ"><label>Nom de la commune</label><input type="text" id="p-commune" value="${esc(p.commune || "PASLY")}" ${dis}></div>
@@ -1462,7 +1505,7 @@ async function rendreParametres(c) {
     const lignesTxt = s => $(s, c).value.split("\n").map(x => x.trim()).filter(Boolean);
     const alertes = $("#p-alertes", c).value.split(/[,; ]+/).map(Number).filter(n => Number.isFinite(n) && n >= 0);
     const zones = lignesTxt("#p-zones");
-    if (!zones.length) return toast("Indiquez au moins une zone.", "err");
+    if (!zones.length) return toast("Indiquez au moins une rue.", "err");
     const data = { ...S.params, mode_validite: $("#p-mode", c).value, duree_validite_mois: +$("#p-duree", c).value || 12, max_autorisations_foyer: +$("#p-max", c).value || 1,
       alertes_jours: alertes.length ? [...new Set(alertes)].sort((a, b) => b - a) : [30, 15, 0], justificatif_obligatoire: $("#p-justif", c).checked, zones, types_justificatif: lignesTxt("#p-justifs"),
       commune: $("#p-commune", c).value.trim().toUpperCase() || "PASLY", mention_macaron: $("#p-mention", c).value.trim(), prefixe_numero: $("#p-prefixe", c).value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "") || "PAS",
@@ -1523,18 +1566,18 @@ async function rendreParametres(c) {
 
 /* Démonstration : fiches fictives sur le poste, autorisations anonymes DEMO-… au registre */
 const DEMO = [
-  ["Mme", "DURAND", "Sophie", "3 rue de l'Église", [["DM101PA", "Renault", "Clio", "Gris", "DEMO-001"], ["DM102PA", "Peugeot", "208", "Bleu", "DEMO-001B"]]],
-  ["M.", "LEFEBVRE", "Marc", "12 rue du Moulin", [["DM103PA", "Citroën", "C3", "Blanc", "DEMO-002"]]],
-  ["Mme", "MOREAU", "Isabelle", "5 place de la Mairie", [["DM104PA", "Dacia", "Sandero", "Bleu", "DEMO-003"]]],
-  ["M.", "GIRARD", "Thomas", "8 chemin des Vignes", [["DM105PA", "Volkswagen", "Golf", "Noir", "DEMO-004"]]],
-  ["Mme", "ROUSSEL", "Nadia", "21 rue des Tilleuls", [["DM106PA", "Toyota", "Yaris", "Rouge", "DEMO-005"]]],
-  ["M.", "FONTAINE", "Pierre", "2 rue du Château", [["DM107PA", "Peugeot", "3008", "Gris", "DEMO-006", "Vérification de domicile en cours"]]],
-  ["Mme", "MERCIER", "Julie", "14 rue de l'Église", [["DM108PA", "Renault", "Mégane", "Blanc", "DEMO-007", "Déménagement du titulaire"]]],
-  ["M.", "BLANCHARD", "Hugo", "7 rue des Écoles", [["DM109PA", "Fiat", "500", "Vert", "DEMO-008"]]],
-  ["Mme", "GAUTIER", "Claire", "1 impasse des Lilas", [["DM110PA", "Kia", "Picanto", "Blanc", "DEMO-009"], ["DM111PA", "Ford", "Fiesta", "Gris", "DEMO-009B"]]],
-  ["M.", "PERRIN", "Antoine", "18 rue du Moulin", [["DM112PA", "Skoda", "Fabia", "Gris", "attente"]]],
-  ["Mme", "CHEVALIER", "Laura", "4 rue des Tilleuls", [["DM113PA", "Opel", "Corsa", "Noir", "attente_sans"]]],
-  ["M.", "ROBIN", "Michel", "10 place de la Mairie", [["DM114PA", "Citroën", "Berlingo", "Blanc", "refusee"]]]
+  ["Mme", "DURAND", "Sophie", "3|Rue de l'Osière", [["DM101PA", "Renault", "Clio", "Gris", "DEMO-001"], ["DM102PA", "Peugeot", "208", "Bleu", "DEMO-001B"]]],
+  ["M.", "LEFEBVRE", "Marc", "12|Rue Louis Roche", [["DM103PA", "Citroën", "C3", "Blanc", "DEMO-002"]]],
+  ["Mme", "MOREAU", "Isabelle", "5|Rue de Mahy", [["DM104PA", "Dacia", "Sandero", "Bleu", "DEMO-003"]]],
+  ["M.", "GIRARD", "Thomas", "8|Rue des Maraichers", [["DM105PA", "Volkswagen", "Golf", "Noir", "DEMO-004"]]],
+  ["Mme", "ROUSSEL", "Nadia", "21|Avenue du Bois Roger", [["DM106PA", "Toyota", "Yaris", "Rouge", "DEMO-005"]]],
+  ["M.", "FONTAINE", "Pierre", "2|Rue de la Rochette", [["DM107PA", "Peugeot", "3008", "Gris", "DEMO-006", "Vérification de domicile en cours"]]],
+  ["Mme", "MERCIER", "Julie", "14|Rue de l'Osière", [["DM108PA", "Renault", "Mégane", "Blanc", "DEMO-007", "Déménagement du titulaire"]]],
+  ["M.", "BLANCHARD", "Hugo", "7|Rue Jules Debordeaux", [["DM109PA", "Fiat", "500", "Vert", "DEMO-008"]]],
+  ["Mme", "GAUTIER", "Claire", "1|Rue des Glycines", [["DM110PA", "Kia", "Picanto", "Blanc", "DEMO-009"], ["DM111PA", "Ford", "Fiesta", "Gris", "DEMO-009B"]]],
+  ["M.", "PERRIN", "Antoine", "18|Rue Louis Roche", [["DM112PA", "Skoda", "Fabia", "Gris", "attente"]]],
+  ["Mme", "CHEVALIER", "Laura", "4|Avenue du Bois Roger", [["DM113PA", "Opel", "Corsa", "Noir", "attente_sans"]]],
+  ["M.", "ROBIN", "Michel", "10|Rue du Périgord", [["DM114PA", "Citroën", "Berlingo", "Blanc", "refusee"]]]
 ];
 async function purgerDemo() {
   await rpc("sta_purger_demo");
@@ -1548,7 +1591,8 @@ async function chargerDemo() {
   const autos = await rpc("sta_charger_demo"), parNum = Object.fromEntries(autos.map(a => [a.numero, a]));
   const t = new Date(); let i = 0;
   for (const [civ, nom, prenom, adr, vls] of DEMO) {
-    const r = { id: uuid(), civilite: civ, nom, prenom, adresse: adr, complement: null, code_postal: "02200", commune: "Pasly", telephone: `06 00 00 00 ${String(++i).padStart(2, "0")}`,
+    const [numero, rue] = adr.split("|");
+    const r = { id: uuid(), civilite: civ, nom, prenom, numero, rue, adresse: `${numero} ${rue}`, complement: null, code_postal: "02200", commune: "Pasly", telephone: `06 00 00 00 ${String(++i).padStart(2, "0")}`,
       email: i % 3 === 1 ? `${prenom.toLowerCase()}.${nom.toLowerCase()}@example.org` : null, notes: null, demo: true, created_at: maintenant(), updated_at: maintenant() };
     L.riverains.push(r);
     for (const [pl, ma, mo, co, cas, motif] of vls) {
@@ -1558,7 +1602,7 @@ async function chargerDemo() {
         date_reception: iso(new Date(t.getTime() - 2 * 864e5)), justificatif_verifie: cas !== "attente_sans" && cas !== "refusee", justificatif_type: cas === "attente_sans" || cas === "refusee" ? null : "Facture d'énergie (moins de 3 mois)",
         agent_nom: "Secrétariat (démo)", statut: "en_attente", demo: true, created_at: maintenant() };
       const a = parNum[cas];
-      if (a) { Object.assign(d, { statut: "validee", date_reception: a.date_delivrance, date_decision: a.date_delivrance, autorisation_id: a.id });
+      if (a) { if (a.statut !== "annulee") { await rpc("sta_changer_zone", { p_aut: a.id, p_zone: rue }); a.zone = rue; } Object.assign(d, { statut: "validee", date_reception: a.date_delivrance, date_decision: a.date_delivrance, autorisation_id: a.id });
         L.liens[a.id] = { numero: a.numero, riverain_id: r.id, vehicule_id: v.id, immatriculation: pl, demande_id: d.id, motif_statut: motif || null, macaron_imprime_le: a.numero.endsWith("B") ? null : maintenant(), demo: true }; }
       else if (cas === "refusee") Object.assign(d, { statut: "refusee", motif_refus: "Adresse située hors du périmètre défini par l'arrêté", date_decision: maintenant() });
       L.demandes.unshift(d);
