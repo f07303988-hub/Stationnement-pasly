@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#1d4f8c">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Stationnement">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Stationnement Pasly — Autorisations riverains</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231d4f8c'/%3E%3Ctext x='32' y='45' font-family='Arial' font-weight='700' font-size='38' text-anchor='middle' fill='%23fff'%3EP%3C/text%3E%3C/svg%3E">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
@@ -207,10 +213,11 @@ tr.clic{cursor:pointer} tr.clic:hover td{background:#f8fafd}
   <form class="boite-cnx" id="form-cnx" autocomplete="on">
     <div class="blason"><div class="logo">P</div><div><b>Commune de Pasly</b><span class="mut petit">Stationnement — autorisations riverains</span></div></div>
     <div id="info-qr" class="info-qr cache">Un macaron a été scanné. La vérification est réservée aux agents habilités : connectez-vous pour afficher le résultat.</div>
-    <div class="champ"><label for="cnx-email">Identifiant (adresse électronique)</label><input type="email" id="cnx-email" required autocomplete="username"></div>
+    <div class="champ"><label for="cnx-email">Identifiant (adresse électronique)</label><input type="email" id="cnx-email" required autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="email"><div id="cnx-aide" class="aide cache"></div></div>
     <div class="champ"><label for="cnx-mdp">Mot de passe</label><input type="password" id="cnx-mdp" required autocomplete="current-password"></div>
     <div id="cnx-erreur" class="bandeau alerte cache"></div>
     <button class="btn p" style="width:100%;padding:12px" type="submit" id="cnx-btn">Se connecter</button>
+    <p style="text-align:center;margin:12px 0 0"><a href="#" id="cnx-oubli" class="petit">Mot de passe oublié ?</a></p>
     <p class="mut petit" style="margin:16px 0 0">Accès réservé aux agents de la mairie de Pasly. Les connexions et opérations sont journalisées. Les données des riverains restent sur l'ordinateur de la mairie.</p>
   </form>
 </div>
@@ -218,8 +225,8 @@ tr.clic{cursor:pointer} tr.clic:hover td{background:#f8fafd}
 <!-- ============ CHANGEMENT DE MOT DE PASSE OBLIGATOIRE ============ -->
 <div id="ecran-mdp" class="cache" style="min-height:100%;display:flex;align-items:center;justify-content:center;padding:20px;background:var(--c1)">
   <form class="boite-cnx" id="form-mdp-oblig">
-    <h2>Choisissez votre mot de passe</h2>
-    <p class="mut petit">Pour votre première connexion (ou après une réinitialisation), vous devez définir un mot de passe personnel : 10 caractères minimum, avec des lettres et des chiffres.</p>
+    <h2 id="mdp-titre">Choisissez votre mot de passe</h2>
+    <p class="mut petit" id="mdp-texte">Pour votre première connexion (ou après une réinitialisation), vous devez définir un mot de passe personnel : 10 caractères minimum, avec des lettres et des chiffres.</p>
     <div class="champ"><label>Nouveau mot de passe</label><input type="password" id="mdp1" required autocomplete="new-password"></div>
     <div class="champ"><label>Confirmation</label><input type="password" id="mdp2" required autocomplete="new-password"></div>
     <button class="btn p" style="width:100%;padding:12px" type="submit">Enregistrer</button>
@@ -263,7 +270,7 @@ tr.clic{cursor:pointer} tr.clic:hover td{background:#f8fafd}
    ===================================================================== */
 const SUPABASE_URL = "https://idswkljjaoajhevgsnfh.supabase.co";
 const SUPABASE_CLE = "sb_publishable_kaRpfQPyPZUKjLkWOEyUTQ_vRKLLU7c";
-const VERSION = "2.1.0";
+const VERSION = "2.2.0";
 const DELAI_INACTIVITE_MIN = 45;
 const APP_LOCAL = "Stationnement Pasly — données locales";
 const APP_REGISTRE = "Stationnement Pasly — registre anonyme";
@@ -272,6 +279,8 @@ if (!window.supabase || !window.qrcode || !window.jspdf) {
   document.body.innerHTML = '<div style="padding:40px;font-family:sans-serif"><h2>Connexion internet requise</h2><p>Les composants de l\'application n\'ont pas pu être chargés. Vérifiez la connexion et rechargez la page.</p></div>';
   throw new Error("Bibliothèques non chargées");
 }
+const HASH_INITIAL = location.hash;
+let MODE_RECUP = /type=recovery/.test(HASH_INITIAL);
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_CLE, {
   auth: { storageKey: "sta-pasly-auth", persistSession: true, autoRefreshToken: true }
 });
@@ -550,7 +559,7 @@ function fusionner() {
       orphelin: !r, riverain_id: l?.riverain_id || null, vehicule_id: l?.vehicule_id || null, immatriculation: l?.immatriculation || "",
       motif_statut: l?.motif_statut || null, macaron_imprime_le: l?.macaron_imprime_le || null, demande_id: l?.demande_id || null,
       civilite: r?.civilite, nom: r ? r.nom : "(fiche absente de ce poste)", prenom: r?.prenom || "", adresse: r?.adresse || "", complement: r?.complement || "",
-      telephone: r?.telephone || "", email: r?.email || "", marque: v?.marque || "", modele: v?.modele || "", couleur: v?.couleur || "" };
+      telephone: r?.telephone || "", email: r?.email || "", code_postal: r?.code_postal || "02200", commune: r?.commune || "Pasly", relance_le: l?.relance_le || null, marque: v?.marque || "", modele: v?.modele || "", couleur: v?.couleur || "" };
   }).sort((x, y) => x.numero.localeCompare(y.numero));
 }
 function calculerFin(debutIso) {
@@ -680,6 +689,7 @@ function rendreTableau(c) {
     <div class="actions"><a class="btn p" href="#/demande">+ Nouvelle demande</a><a class="btn" href="#/controle">Contrôler</a></div></div>
   ${bandeauStockage()}
   ${aDemo ? `<div class="bandeau demo">⚠️ Des <b>données de démonstration</b> sont présentes (marquées DÉMO). ${estAdmin() ? `Supprimez-les avant la mise en production : <a href="#/parametres">Paramètres → Données de démonstration</a>.` : "L'administrateur devra les supprimer avant la mise en production."}</div>` : ""}
+  ${estAdmin() && fichesAPurger().length ? `<div class="bandeau info">🗂 ${fichesAPurger().length} fiche(s) de riverains ont dépassé la durée de conservation (${+S.params.conservation_fiches_mois || 24} mois sans autorisation). <a href="#/riverains?f=purge">Voir et supprimer</a></div>` : ""}
   ${renouv.length ? `<div class="bandeau alerte">🔔 <b>${renouv.length} autorisation(s)</b> arrivent à échéance dans les ${seuilMax()} prochains jours. <a href="#/autorisations?f=renouveler">Voir la liste</a></div>` : ""}
   <div class="grille-tuiles">
     <div class="tuile" data-go="#/riverains"><div class="val">${L.riverains.length}</div><div class="lib">Riverains enregistrés</div></div>
@@ -690,10 +700,10 @@ function rendreTableau(c) {
     <div class="tuile g" data-go="#/autorisations?f=renouveler"><div class="val">${renouv.length}</div><div class="lib">À renouveler (≤ ${seuilMax()} j)</div></div>
   </div>
   <div class="carte"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px"><h2 style="margin:0">Alertes de renouvellement</h2>
-    <button class="btn mini" id="tb-imprimer">🖨 Imprimer la liste à renouveler</button></div>
+    <div class="actions"><button class="btn mini" id="tb-relances">✉ Courriers de relance (${candidatsRelance().length})</button><button class="btn mini" id="tb-imprimer">🖨 Imprimer la liste à renouveler</button></div></div>
     <div class="trois-col">
     ${groupes.map(g => `<div class="colonne-alerte"><h3><span class="puce" style="background:${g.couleur}"></span>${esc(g.titre)} <span class="badge b-inconnu">${g.items.length}</span></h3>
-      ${g.items.length ? `<ul class="liste-alerte">${g.items.map(a => `<li data-aut="${a.id}"><span>${esc(nomComplet(a))}<br><span class="mut petit">${esc(a.numero)} · fin ${fd(a.date_fin)}</span></span>${plaqueHtml(a.immatriculation)}</li>`).join("")}</ul>` : `<div class="mut petit">Aucune autorisation.</div>`}</div>`).join("")}
+      ${g.items.length ? `<ul class="liste-alerte">${g.items.map(a => `<li data-aut="${a.id}"><span>${esc(nomComplet(a))}<br><span class="mut petit">${esc(a.numero)} · fin ${fd(a.date_fin)}${a.relance_le ? " · ✉ relancé le " + fd(a.relance_le) : ""}</span></span>${plaqueHtml(a.immatriculation)}</li>`).join("")}</ul>` : `<div class="mut petit">Aucune autorisation.</div>`}</div>`).join("")}
     </div>
     ${recentesExp.length ? `<h3 style="margin-top:16px">Expirées depuis moins de 30 jours, non renouvelées</h3><ul class="liste-alerte">${recentesExp.map(a => `<li data-aut="${a.id}"><span>${esc(nomComplet(a))} — <span class="mut">${esc(a.numero)}, expirée le ${fd(a.date_fin)}</span></span>${plaqueHtml(a.immatriculation)}</li>`).join("")}</ul>` : ""}
   </div>
@@ -711,6 +721,7 @@ function rendreTableau(c) {
   $$("[data-aut]", c).forEach(t => t.onclick = () => ficheAutorisation(t.dataset.aut));
   $$("[data-valider]", c).forEach(b => b.onclick = () => traiterDemande(b.dataset.valider));
   $("#tb-imprimer", c).onclick = imprimerARenouveler;
+  $("#tb-relances", c).onclick = () => genererRelances(candidatsRelance().map(a => a.id));
   $$("[data-imp-rue]", c).forEach(b => b.onclick = ev => { ev.stopPropagation(); const rue = b.dataset.impRue;
     imprimerListe(`Autorisations — ${rue}`, ["N°", "Titulaire", "Adresse", "Immatriculation", "Fin", "Statut"],
       S.autos.filter(a => a.zone === rue && a.statut_effectif !== "annulee").map(a => [a.numero, nomComplet(a), a.adresse, fPlaque(a.immatriculation), fd(a.date_fin), LIB[a.statut_effectif]])); });
@@ -738,8 +749,9 @@ function rendreDemande(c, q) {
   const vue = q.get("vue") === "registre" ? "registre" : "saisie";
   c.innerHTML = `<div class="entete-page"><div><h1>${vue === "saisie" ? "Nouvelle demande" : "Registre des demandes"}</h1>
     <div class="mut">${vue === "saisie" ? "Saisie d'une demande papier déposée en mairie." : "Suivi et traitement des demandes enregistrées."}</div></div>
-    <div class="actions"><a class="btn ${vue === "saisie" ? "p" : ""}" href="#/demande">Saisir une demande</a><a class="btn ${vue === "registre" ? "p" : ""}" href="#/demande?vue=registre">Registre des demandes (${L.demandes.filter(d => d.statut === "en_attente").length} en attente)</a></div></div>
+    <div class="actions"><a class="btn ${vue === "saisie" ? "p" : ""}" href="#/demande">Saisir une demande</a><button class="btn" id="btn-formulaire">🖨 Formulaire papier vierge</button><a class="btn ${vue === "registre" ? "p" : ""}" href="#/demande?vue=registre">Registre des demandes (${L.demandes.filter(d => d.statut === "en_attente").length} en attente)</a></div></div>
     <div id="zone-demande"></div>`;
+  $("#btn-formulaire", c).onclick = genererFormulaire;
   if (vue === "registre") return rendreRegistre($("#zone-demande", c));
   rendreSaisie($("#zone-demande", c), q);
 }
@@ -864,7 +876,7 @@ async function enregistrerDemande(f) {
     }
     await sauverLocal();
     for (const { d, plaque } of demandes) {
-      const ligne = { plaque, demande: d.numero, etat: "en_attente", info: "" };
+      const ligne = { plaque, demande: d.numero, demId: d.id, etat: "en_attente", info: "" };
       try {
         if (statut === "validee") { ligne.autId = await validerDemande(d, { zone: val("#d-zone") }); ligne.etat = "validee"; }
         else if (statut === "refusee") { refuserDemande(d, val("#d-motif")); await sauverLocal(); ligne.etat = "refusee"; }
@@ -878,8 +890,9 @@ async function enregistrerDemande(f) {
     <table><thead><tr><th>Véhicule</th><th>Demande</th><th>Résultat</th></tr></thead><tbody>
     ${bilan.map(b => { const a = S.autos.find(x => x.id === b.autId); return `<tr><td>${plaqueHtml(b.plaque)}</td><td>${esc(b.demande)}</td><td>${badge(b.etat)} ${a ? `<b>${esc(a.numero)}</b> jusqu'au ${fd(a.date_fin)}` : ""}${b.info ? `<div class="petit" style="color:var(--rouge)">${esc(b.info)}</div>` : ""}</td></tr>`; }).join("")}
     </tbody></table>`,
-    `<button class="btn" id="bm-fiche">Voir la fiche riverain</button><button class="btn" id="bm-autre">Nouvelle saisie</button>${autIds.length ? `<button class="btn p" id="bm-mac">🖨 Imprimer le(s) macaron(s)</button>` : ""}`);
+    `<button class="btn" id="bm-recep">🖨 Récépissé</button><button class="btn" id="bm-fiche">Voir la fiche riverain</button><button class="btn" id="bm-autre">Nouvelle saisie</button>${autIds.length ? `<button class="btn p" id="bm-mac">🖨 Imprimer le(s) macaron(s)</button>` : ""}`);
   $("#bm-autre", m).onclick = () => { fermerModale(); afficherPage(); };
+  $("#bm-recep", m).onclick = () => genererRecepisse(bilan.map(b => b.demId));
   $("#bm-fiche", m).onclick = () => { fermerModale(); aller("#/riverains"); setTimeout(() => ficheRiverain(rivId), 50); };
   if (autIds.length) $("#bm-mac", m).onclick = () => { fermerModale(); genererMacarons(autIds, "4"); aller("#/macarons"); };
 }
@@ -897,7 +910,8 @@ function rendreRegistre(z) {
         <td>${esc(d.numero)}${demoB(d)}</td><td>${fd(d.date_reception)}</td><td>${esc(nomComplet(r))}</td><td class="petit">${esc(r?.adresse)}</td><td>${plaqueHtml(v?.immatriculation)}</td>
         <td>${d.justificatif_verifie ? "✅" : "⏳"} <span class="petit mut">${esc(d.justificatif_type || "")}</span></td><td class="petit">${esc(d.agent_nom || "")}</td>
         <td>${badge(d.statut)}${d.statut === "refusee" ? `<div class="petit mut">${esc(d.motif_refus)}</div>` : ""}${a ? `<div class="petit"><a href="#" data-aut="${a.id}">${esc(a.numero)}</a></div>` : ""}</td>
-        <td>${d.statut === "en_attente" ? `<button class="btn mini p" data-traiter="${d.id}">Traiter</button>` : ""}</td></tr>`; }).join("")}</tbody></table>` : `<div class="vide">Aucune demande.</div>`;
+        <td class="actions">${d.statut === "en_attente" ? `<button class="btn mini p" data-traiter="${d.id}">Traiter</button>` : ""}<button class="btn mini" data-recep="${d.id}" title="Récépissé de dépôt">🖨</button></td></tr>`; }).join("")}</tbody></table>` : `<div class="vide">Aucune demande.</div>`;
+    $$("[data-recep]", z).forEach(b => b.onclick = () => genererRecepisse([b.dataset.recep]));
     $$("[data-traiter]", z).forEach(b => b.onclick = () => traiterDemande(b.dataset.traiter));
     $$("[data-aut]", z).forEach(b => b.onclick = e => { e.preventDefault(); ficheAutorisation(b.dataset.aut); });
     return l;
@@ -947,31 +961,35 @@ function traiterDemande(id) {
 /* =====================================================================
    3. RIVERAINS
    ===================================================================== */
-function rendreRiverains(c) {
+function rendreRiverains(c, q) {
   c.innerHTML = `<div class="entete-page"><div><h1>Liste des riverains</h1><div class="mut">${L.riverains.length} riverain(s) enregistré(s) sur ce poste</div></div>
     <div class="actions"><button class="btn" id="rv-csv">Exporter (CSV)</button><button class="btn" id="rv-imp">🖨 Imprimer</button><a class="btn p" href="#/demande">+ Nouvelle demande</a></div></div>
     ${bandeauStockage()}
     <div class="carte"><div class="filtres"><div><label>Recherche</label><input type="search" id="rv-q" placeholder="Nom, adresse, téléphone, immatriculation…"></div>
       <div><label>Rue</label><select id="rv-r">${optionsRues("", "Toutes les rues")}</select></div>
-      <div><label>Situation</label><select id="rv-f"><option value="">Tous</option><option value="actif">Avec autorisation active</option><option value="sans">Sans autorisation active</option></select></div></div>
+      <div><label>Situation</label><select id="rv-f"><option value="">Tous</option><option value="actif">Avec autorisation active</option><option value="sans">Sans autorisation active</option><option value="purge">À supprimer — conservation dépassée (RGPD)</option></select></div>
+      <div style="margin-left:auto"><button class="btn danger cache" id="rv-purge"></button></div></div>
     <div class="tableau-wrap" id="rv-tab"></div></div>`;
+  if (q?.get("f") === "purge") $("#rv-f", c).value = "purge";
   brancherBandeau(c);
   const liste = () => {
     const t = $("#rv-q", c).value.toLowerCase(), f = $("#rv-f", c).value, ru = $("#rv-r", c).value;
+    const aPurger = new Set(f === "purge" ? fichesAPurger().map(r => r.id) : []);
     return [...L.riverains].sort((a, b) => nomComplet(a).localeCompare(nomComplet(b))).filter(r => {
       if (ru && rueDe(r) !== ru) return false;
       const vs = L.vehicules.filter(v => v.riverain_id === r.id);
       const act = S.autos.some(a => a.riverain_id === r.id && a.statut_effectif === "active");
-      if (f === "actif" && !act) return false; if (f === "sans" && act) return false;
+      if (f === "actif" && !act) return false; if (f === "sans" && act) return false; if (f === "purge" && !aPurger.has(r.id)) return false;
       return !t || `${nomComplet(r)} ${r.adresse} ${r.complement || ""} ${r.telephone || ""} ${r.email || ""} ${vs.map(v => v.immatriculation + " " + fPlaque(v.immatriculation)).join(" ")}`.toLowerCase().includes(t);
     });
   };
   const dessiner = () => {
-    const l = liste();
-    $("#rv-tab", c).innerHTML = l.length ? `<table><thead><tr><th>Riverain</th><th>Adresse</th><th>Téléphone</th><th>Véhicules</th><th>Autorisations</th></tr></thead><tbody>
+    const l = liste(), purge = $("#rv-f", c).value === "purge", bp = $("#rv-purge", c);
+    bp.classList.toggle("cache", !(purge && estAdmin() && l.length)); bp.textContent = `Supprimer ces ${l.length} fiche(s)`; bp.onclick = () => purgerFiches(l.map(r => r.id));
+    $("#rv-tab", c).innerHTML = l.length ? `<table><thead><tr><th>Riverain</th><th>Adresse</th><th>Téléphone</th><th>Véhicules</th><th>${purge ? "Dernière activité" : "Autorisations"}</th></tr></thead><tbody>
     ${l.map(r => { const vs = L.vehicules.filter(v => v.riverain_id === r.id && v.actif), as = S.autos.filter(a => a.riverain_id === r.id && a.statut_effectif !== "annulee");
       return `<tr class="clic" data-riv="${r.id}"><td><b>${esc(nomComplet(r))}</b>${demoB(r)}</td><td>${esc(r.adresse)}${r.complement ? `<br><span class="mut petit">${esc(r.complement)}</span>` : ""}</td><td>${esc(r.telephone || "")}</td>
-      <td>${vs.map(v => plaqueHtml(v.immatriculation)).join(" ") || "—"}</td><td>${as.map(a => badge(a.statut_effectif)).join(" ") || '<span class="mut">—</span>'}</td></tr>`; }).join("")}</tbody></table>` : `<div class="vide">Aucun riverain.</div>`;
+      <td>${vs.map(v => plaqueHtml(v.immatriculation)).join(" ") || "—"}</td><td>${purge ? fd(derniereActivite(r)) : (as.map(a => badge(a.statut_effectif)).join(" ") || '<span class="mut">—</span>')}</td></tr>`; }).join("")}</tbody></table>` : `<div class="vide">${purge ? "Aucune fiche n'a dépassé la durée de conservation." : "Aucun riverain."}</div>`;
     $$("[data-riv]", c).forEach(tr => tr.onclick = () => ficheRiverain(tr.dataset.riv));
   };
   $("#rv-q", c).oninput = dessiner; $("#rv-f", c).onchange = dessiner; $("#rv-r", c).onchange = dessiner;
@@ -1123,7 +1141,7 @@ async function activerVehicule(vid, actif) {
    ===================================================================== */
 function rendreAutorisations(c, q) {
   c.innerHTML = `<div class="entete-page"><div><h1>Autorisations</h1><div class="mut">${S.autos.length} autorisation(s) au registre</div></div>
-    <div class="actions"><button class="btn" id="au-imp">🖨 Imprimer la liste affichée</button><button class="btn" id="au-ren">🖨 Liste à renouveler</button><button class="btn" id="au-csv">Exporter (CSV)</button></div></div>
+    <div class="actions"><button class="btn" id="au-rel">✉ Courriers de relance</button><button class="btn" id="au-imp">🖨 Imprimer la liste affichée</button><button class="btn" id="au-ren">🖨 Liste à renouveler</button><button class="btn" id="au-csv">Exporter (CSV)</button></div></div>
     <div class="carte"><div class="filtres">
       <div><label>Statut</label><select id="au-f"><option value="">Toutes</option><option value="active">Actives</option><option value="renouveler">À renouveler (≤ ${seuilMax()} j)</option><option value="expiree">Expirées</option><option value="suspendue">Suspendues</option><option value="annulee">Annulées</option><option value="orphelin">Sans fiche sur ce poste</option></select></div>
       <div><label>Recherche</label><input type="search" id="au-q" placeholder="N°, titulaire, adresse, immatriculation…"></div>
@@ -1147,6 +1165,7 @@ function rendreAutorisations(c, q) {
   };
   ["#au-f", "#au-z"].forEach(s => $(s, c).onchange = dessiner); $("#au-q", c).oninput = dessiner;
   $("#au-ren", c).onclick = imprimerARenouveler;
+  $("#au-rel", c).onclick = () => genererRelances(candidatsRelance().map(a => a.id));
   $("#au-imp", c).onclick = () => imprimerListe("Registre des autorisations" + ($("#au-z", c).value ? " — " + $("#au-z", c).value : ""), ["N°", "Titulaire", "Adresse", "Immatriculation", "Rue autorisée", "Délivrée le", "Fin", "Statut"],
     liste().map(a => [a.numero, nomComplet(a), a.adresse, fPlaque(a.immatriculation), a.zone || "", fd(a.date_delivrance), fd(a.date_fin), LIB[a.statut_effectif]]));
   $("#au-csv", c).onclick = () => csv(`autorisations-${aujourdhui()}.csv`, ["N°", "Nom", "Prénom", "Adresse", "Téléphone", "Immatriculation", "Marque", "Modèle", "Rue autorisée", "Délivrée le", "Fin", "Statut", "Motif", "Renouvellements", "Macaron imprimé le"],
@@ -1171,6 +1190,7 @@ function ficheAutorisation(id) {
         <dt>Fin de validité</dt><dd><b>${fd(a.date_fin)}</b> ${st === "active" ? `<span class="mut">(${a.jours_restants} j)</span>` : ""}</dd>
         <dt>Renouvellements</dt><dd>${a.nb_renouvellements}</dd>
         <dt>Macaron</dt><dd>${a.macaron_imprime_le ? "Imprimé le " + fdt(a.macaron_imprime_le) : "Non imprimé"}</dd>
+        <dt>Relance</dt><dd>${a.relance_le ? "Courrier envoyé le " + fd(a.relance_le) : "—"}</dd>
       </dl></div>`,
     `${estAdmin() ? `<button class="btn danger" id="fa-sup">Supprimer</button>` : ""}
      ${a.statut !== "annulee" ? `<button class="btn" id="fa-qr" title="Invalide l'ancien macaron">Régénérer le QR</button>` : ""}
@@ -1179,12 +1199,14 @@ function ficheAutorisation(id) {
      ${a.statut !== "annulee" ? `<button class="btn danger" id="fa-rev">Révoquer</button>` : ""}
      ${a.statut !== "annulee" && !a.orphelin ? `<button class="btn" id="fa-immat">Changer l'immatriculation</button>` : ""}
      ${a.statut !== "annulee" ? `<button class="btn" id="fa-rue">Changer la rue</button>` : ""}
+     ${enCours && !a.orphelin ? `<button class="btn" id="fa-rel">✉ Courrier de relance</button>` : ""}
      ${enCours ? `<button class="btn vert" id="fa-ren">Renouveler</button>` : ""}
      ${st === "active" ? `<button class="btn p" id="fa-mac">🖨 Macaron</button>` : ""}`, { large: true });
   const act = async (fn, msg) => { try { chargement(true); await fn(); await sauverLocal(); chargement(false); fermerModale(); toast(msg, "ok"); afficherPage(); } catch (e) { chargement(false); erreur(e); } };
   const l = () => L.liens[a.id] || (L.liens[a.id] = { numero: a.numero });
   $("#fa-riv", m)?.addEventListener("click", e => { e.preventDefault(); ficheRiverain(a.riverain_id); });
   $("#fa-mac", m)?.addEventListener("click", () => { fermerModale(); genererMacarons([a.id], "1"); });
+  $("#fa-rel", m)?.addEventListener("click", () => { fermerModale(); genererRelances([a.id], false); });
   $("#fa-immat", m)?.addEventListener("click", () => { fermerModale(); changerImmatriculation(a.vehicule_id); });
   $("#fa-rue", m)?.addEventListener("click", () => {
     const m2 = ouvrirModale(`Rue autorisée — ${a.numero}`, `<div class="champ"><label class="oblig">Rue de stationnement autorisée</label><select id="cz-rue">${optionsRues(a.zone)}</select></div><p class="mut petit">Le macaron (qui indique la rue) devra être réimprimé ; le QR code reste le même.</p>`,
@@ -1321,7 +1343,9 @@ function rendreControle(c) {
     <div id="ct-res"></div>
     <div class="carte" style="margin-top:16px"><h3>Mes derniers contrôles</h3><ul class="hist-ctrl" id="ct-hist" style="list-style:none;padding:0;margin:0"></ul></div>
     <p class="mut petit" style="text-align:center">Le QR code ne constitue pas à lui seul une autorisation : vérifiez que l'immatriculation imprimée sur le macaron correspond au véhicule.</p>
+    ${/Mobi|Android|iPhone/i.test(navigator.userAgent) ? aideInstallation() : ""}
   </div>`;
+  brancherInstallation(c);
   const lieu = $("#ct-lieu", c); lieu.onchange = () => localStorage.setItem("sta-lieu", lieu.value.trim());
   $("#ct-form", c).onsubmit = e => { e.preventDefault(); const v = $("#ct-num", c).value.trim(); if (!v) return toast("Saisissez le numéro du macaron.", "err"); verifier("numero", v); $("#ct-num", c).blur(); };
   if (local) $("#ct-form-p", c).onsubmit = e => {
@@ -1395,7 +1419,7 @@ async function rendreHistorique(c, q) {
     ${vue === "operations" ? `<div><label>Source</label><select id="h-obj"><option value="">Toutes</option><option value="serveur">Registre (serveur)</option><option value="local">Fiches (ce poste)</option></select></div>` :
       `<div><label>Résultat</label><select id="h-obj"><option value="">Tous</option><option value="valide">Valide</option><option value="expiree">Expirée</option><option value="annulee">Annulée</option><option value="suspendue">Suspendue</option><option value="inconnu">Inconnu</option></select></div>`}
     <div><label>Recherche</label><input type="search" id="h-q" placeholder="Agent, n°, action…"></div><div><button class="btn p" id="h-go">Afficher</button></div><div style="margin-left:auto"><button class="btn" id="h-csv">Exporter (CSV)</button></div></div>
-    <div class="tableau-wrap" id="h-tab"><div class="vide">Chargement…</div></div></div>`;
+    <div id="h-stats"></div><div class="tableau-wrap" id="h-tab"><div class="vide">Chargement…</div></div></div>`;
   let lignes = [];
   const fmtV = v => v == null ? "∅" : typeof v === "object" ? JSON.stringify(v).slice(0, 80) : String(v).slice(0, 80);
   const resume = d => {
@@ -1422,6 +1446,7 @@ async function rendreHistorique(c, q) {
   const filtrees = () => { const t = $("#h-q", c).value.toLowerCase(); return lignes.filter(l => !t || JSON.stringify(l).toLowerCase().includes(t)); };
   const dessiner = () => {
     const l = filtrees();
+    $("#h-stats", c).innerHTML = vue === "controles" ? statsControles(l) : "";
     $("#h-tab", c).innerHTML = !l.length ? `<div class="vide">Aucune entrée sur la période.</div>` : vue === "operations" ?
       `<table><thead><tr><th>Date</th><th>Source</th><th>Agent</th><th>Action</th><th>Objet</th><th>Libellé</th><th>Détail</th></tr></thead><tbody>${l.map(x => `<tr><td class="petit">${fdt(x.horodatage)}</td><td class="petit">${esc(x.source)}</td><td>${esc(x.agent_nom || "")}</td><td><b>${esc(x.action)}</b></td><td>${esc(x.objet || "")}</td><td>${esc(x.libelle || "")}</td><td class="petit">${x.action === "création" && x.source === "Registre" ? "" : resume(x.details)}</td></tr>`).join("")}</tbody></table>` :
       `<table><thead><tr><th>Date</th><th>Agent</th><th>Méthode</th><th>N° / recherche</th><th>Résultat</th><th>Lieu</th></tr></thead><tbody>${l.map(x => `<tr><td class="petit">${fdt(x.horodatage)}</td><td>${esc(x.agent_nom || "")}</td><td>${x.methode === "qr" ? "QR code" : "Numéro"}</td><td>${esc(x.valeur || "")}</td><td>${badge(x.resultat)}</td><td>${esc(x.lieu || "")}</td></tr>`).join("")}</tbody></table>`;
@@ -1473,9 +1498,18 @@ async function rendreParametres(c) {
     <div class="champ"><label>Texte d'information</label><textarea id="p-texte" ${dis}>${esc(p.texte_macaron || "")}</textarea></div>
     <div class="ligne"><div class="champ"><label class="case"><input type="checkbox" id="p-plaque" ${p.afficher_plaque_macaron !== false ? "checked" : ""} ${dis}> Imprimer l'immatriculation sur le macaron</label><div class="aide">Recommandé : sur le terrain, c'est le seul moyen de vérifier que le macaron correspond au véhicule.</div></div>
       <div class="champ" style="grid-column:span 2"><label>Adresse de vérification des QR codes</label><input type="text" id="p-url" value="${esc(p.url_controle || "")}" placeholder="${esc(location.origin + location.pathname)}" ${dis}><div class="aide">Laisser vide pour utiliser l'adresse actuelle de l'application. À fixer avant d'imprimer les premiers macarons définitifs.</div></div></div></div>
+  <div class="carte"><h2>Courriers et formulaires</h2>
+    <div class="ligne"><div class="champ"><label>Adresse de la mairie (une ligne par ligne)</label><textarea id="p-madr" ${dis}>${esc(p.mairie_adresse || "Mairie de Pasly\n02200 Pasly")}</textarea></div>
+      <div class="champ"><label>Téléphone</label><input type="text" id="p-mtel" value="${esc(p.mairie_telephone || "")}" ${dis}><label style="margin-top:8px">Courriel</label><input type="text" id="p-mmail" value="${esc(p.mairie_courriel || "")}" ${dis}></div>
+      <div class="champ"><label>Horaires d'ouverture</label><input type="text" id="p-mhor" value="${esc(p.mairie_horaires || "")}" ${dis}><label style="margin-top:8px">Signataire des courriers</label><textarea id="p-sign" style="min-height:52px" ${dis}>${esc(p.signataire || "Le Maire,\nYohann LECAT")}</textarea></div></div>
+    <div class="champ"><label>Texte du courrier de relance</label><textarea id="p-relance" style="min-height:170px" ${dis}>${esc(p.courrier_relance || RELANCE_DEFAUT)}</textarea>
+      <div class="aide">Champs remplacés automatiquement : {appel} (« Madame, » / « Monsieur, »), {appel_fin}, {nom}, {prenom}, {numero}, {date_fin}, {rue}, {immatriculation}, {jours}.</div></div>
+    <div class="champ"><label>Mention d'information RGPD (formulaire, récépissé, courriers)</label><textarea id="p-rgpd" style="min-height:110px" ${dis}>${esc(p.mention_rgpd || RGPD_DEFAUT)}</textarea><div class="aide">{conservation} = durée de conservation des fiches ci-dessous.</div></div>
+    <div class="actions"><button type="button" class="btn" id="p-test-form">Aperçu du formulaire papier</button><button type="button" class="btn" id="p-test-rel">Aperçu d'un courrier de relance</button></div></div>
   <div class="carte"><h2>Protection des données (RGPD) — durées de conservation</h2>
     <div class="ligne"><div class="champ"><label>Journaux des opérations (mois)</label><input type="number" min="6" id="p-cj" value="${esc(p.conservation_journal_mois ?? 36)}" ${dis}></div>
       <div class="champ"><label>Registre des contrôles (mois)</label><input type="number" min="1" id="p-cc" value="${esc(p.conservation_controles_mois ?? 12)}" ${dis}></div>
+      <div class="champ"><label>Fiches des riverains sans autorisation (mois)</label><input type="number" min="1" id="p-cf" value="${esc(p.conservation_fiches_mois ?? 24)}" ${dis}><div class="aide">Au-delà, la fiche est proposée à la suppression.</div></div>
       <div class="champ"><label>Sauvegardes du registre conservées</label><input type="number" min="3" max="52" id="p-cs" value="${esc(p.conservation_sauvegardes ?? 12)}" ${dis}></div></div></div>
   ${ad ? `<div class="actions" style="justify-content:flex-end;margin-bottom:18px"><button class="btn p" type="submit">Enregistrer les paramètres</button></div>` : ""}
   </form>
@@ -1497,6 +1531,8 @@ async function rendreParametres(c) {
   <p class="mut petit">Stationnement Pasly — version ${VERSION}. Le fonctionnement est paramétrable selon les arrêtés municipaux ; le QR code ne constitue pas à lui seul une autorisation juridique.</p>`;
   brancherBandeau(c);
   $("#p-mdp", c).onclick = changerMotDePasse;
+  $("#p-test-form", c).onclick = genererFormulaire;
+  $("#p-test-rel", c).onclick = () => { const doc = nouveauPdf("Aperçu"); pageRelance(doc, S.autos.find(a => !a.orphelin) || { numero: "PAS-2026-0001", civilite: "Mme", nom: "EXEMPLE", prenom: "Jeanne", adresse: "1 Rue de Mahy", zone: "Rue de Mahy", immatriculation: "AB123CD", date_fin: aujourdhui() }); ouvrirPdf(doc, "apercu-relance.pdf"); };
   $("#dl-delier", c)?.addEventListener("click", async () => { if (await confirmer("Arrêter l'enregistrement automatique", "Le fichier n'est pas supprimé, mais il ne sera plus mis à jour.")) delierFichier(); });
   if (!ad) return;
   $("#dl-ouvrir", c).onclick = ouvrirFichierDonnees; $("#dl-import", c).onclick = importerCopie;
@@ -1511,6 +1547,8 @@ async function rendreParametres(c) {
       commune: $("#p-commune", c).value.trim().toUpperCase() || "PASLY", mention_macaron: $("#p-mention", c).value.trim(), prefixe_numero: $("#p-prefixe", c).value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "") || "PAS",
       arrete_reference: $("#p-arrete", c).value.trim(), couleur_principale: $("#p-c1", c).value, couleur_secondaire: $("#p-c2", c).value, texte_macaron: $("#p-texte", c).value.trim(),
       afficher_plaque_macaron: $("#p-plaque", c).checked, url_controle: $("#p-url", c).value.trim(),
+      mairie_adresse: $("#p-madr", c).value.trim(), mairie_telephone: $("#p-mtel", c).value.trim(), mairie_courriel: $("#p-mmail", c).value.trim(), mairie_horaires: $("#p-mhor", c).value.trim(),
+      signataire: $("#p-sign", c).value.trim(), courrier_relance: $("#p-relance", c).value.trim(), mention_rgpd: $("#p-rgpd", c).value.trim(), conservation_fiches_mois: Math.max(1, +$("#p-cf", c).value || 24),
       conservation_journal_mois: Math.max(6, +$("#p-cj", c).value || 36), conservation_controles_mois: Math.max(1, +$("#p-cc", c).value || 12), conservation_sauvegardes: Math.min(52, Math.max(3, +$("#p-cs", c).value || 12)) };
     try { await req(sb.from("sta_parametres").update({ data, updated_at: maintenant() }).eq("id", 1)); toast("Paramètres enregistrés.", "ok"); await rafraichir(); } catch (er) { erreur(er); }
   };
@@ -1634,6 +1672,222 @@ function changerMotDePasse() {
   };
 }
 
+
+/* =====================================================================
+   v2.2 — COURRIERS, FORMULAIRES ET RÉCÉPISSÉS (PDF générés sur le poste)
+   ===================================================================== */
+const RELANCE_DEFAUT = "{appel}\n\nVotre autorisation de stationnement riverain n° {numero}, délivrée pour le véhicule immatriculé {immatriculation} (voie autorisée : {rue}), arrive à échéance le {date_fin}.\n\nPour la renouveler, nous vous invitons à déposer en mairie, avant cette date, le formulaire de demande complété, accompagné d'un justificatif de domicile de moins de trois mois et du certificat d'immatriculation du véhicule.\n\nSans renouvellement, l'autorisation cessera d'être valable à la date indiquée et le macaron ne pourra plus être utilisé.\n\nNous vous prions d'agréer, {appel_fin}, l'expression de nos salutations distinguées.";
+const RGPD_DEFAUT = "Les informations recueillies sont enregistrées par la mairie de Pasly pour la gestion des autorisations de stationnement réservées aux riverains (base légale : exécution d'une mission d'intérêt public relevant du pouvoir de police du maire). Elles sont conservées sur un poste de la mairie, ne sont accessibles qu'aux agents habilités de la commune et ne sont transmises à aucun tiers. Elles sont conservées pendant la durée de l'autorisation puis {conservation} mois. Vous pouvez accéder à vos données, les faire rectifier ou effacer, et vous opposer à leur traitement en vous adressant à la mairie. Vous pouvez également introduire une réclamation auprès de la CNIL (www.cnil.fr).";
+function nouveauPdf(titre) {
+  const { jsPDF } = window.jspdf; const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+  doc.setProperties({ title: titre, author: "Mairie de Pasly", creator: "Stationnement Pasly " + VERSION }); return doc;
+}
+function ouvrirPdf(doc, nom) { try { window.open(doc.output("bloburl"), "_blank") || doc.save(nom); } catch { doc.save(nom); } }
+function enteteMairie(doc) {
+  const p = S.params, c1 = hexRgb(p.couleur_principale || "#1d4f8c"), c2 = hexRgb(p.couleur_secondaire || "#c8a23a");
+  doc.setFillColor(...c1); doc.rect(20, 14, 3.5, 24, "F"); doc.setFillColor(...c2); doc.rect(23.5, 14, 1.2, 24, "F");
+  doc.setTextColor(...c1); doc.setFont("helvetica", "bold"); doc.setFontSize(8.5); doc.text("RÉPUBLIQUE FRANÇAISE", 29, 18.5);
+  doc.setFontSize(17); doc.text("COMMUNE DE " + String(p.commune || "PASLY").toUpperCase(), 29, 26);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(80, 80, 80);
+  const coord = [...String(p.mairie_adresse || "Mairie de Pasly — 02200 Pasly").split("\n"), p.mairie_telephone ? "Tél. " + p.mairie_telephone : "", p.mairie_courriel || "", p.mairie_horaires || ""].filter(Boolean);
+  doc.text(coord.slice(0, 4), 29, 31, { lineHeightFactor: 1.3 });
+  doc.setTextColor(20, 20, 20);
+}
+function ecrire(doc, texte, x, y, larg, taille = 10.5, inter = 1.35) {
+  doc.setFontSize(taille); const lignes = doc.splitTextToSize(String(texte || ""), larg);
+  doc.text(lignes, x, y, { lineHeightFactor: inter }); return y + lignes.length * taille * 0.3528 * inter;
+}
+const mentionRgpd = () => String(S.params.mention_rgpd || RGPD_DEFAUT).replace(/\{conservation\}/g, String(+S.params.conservation_fiches_mois || 24));
+function remplir(t, a) {
+  const appel = a.civilite === "Mme" ? "Madame" : a.civilite === "M." ? "Monsieur" : "Madame, Monsieur";
+  const v = { appel: appel + ",", appel_fin: appel, civilite: a.civilite || "", nom: a.nom || "", prenom: a.prenom || "", numero: a.numero || "",
+    date_fin: fd(a.date_fin), rue: a.zone || "", immatriculation: fPlaque(a.immatriculation), jours: a.jours_restants };
+  return String(t || "").replace(/\{(\w+)\}/g, (m, k) => (k in v ? String(v[k]) : m));
+}
+function pageRelance(doc, a) {
+  const p = S.params; enteteMairie(doc);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(11);
+  const dest = [`${a.civilite ? a.civilite + " " : ""}${a.prenom || ""} ${a.nom || ""}`.trim(), a.adresse, a.complement, `${a.code_postal || "02200"} ${String(a.commune || "Pasly").toUpperCase()}`].filter(Boolean);
+  doc.text(dest, 115, 56, { lineHeightFactor: 1.35 });
+  doc.setFontSize(10.5); doc.text(`Pasly, le ${new Date().toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}`, 115, 86);
+  doc.setFont("helvetica", "bold");
+  let y = ecrire(doc, `Objet : renouvellement de votre autorisation de stationnement riverain n° ${a.numero}`, 20, 102, 170, 10.5);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(90, 90, 90);
+  doc.text(`Véhicule : ${fPlaque(a.immatriculation)}   —   Rue autorisée : ${a.zone || "—"}   —   Fin de validité : ${fd(a.date_fin)}`, 20, y + 0.5);
+  doc.setTextColor(20, 20, 20);
+  y = ecrire(doc, remplir(p.courrier_relance || RELANCE_DEFAUT, a), 20, y + 11, 170, 10.5, 1.45);
+  doc.setFontSize(10.5); doc.text(String(p.signataire || "Le Maire,").split("\n"), 125, Math.max(y + 14, 205), { lineHeightFactor: 1.4 });
+  doc.setFontSize(7); doc.setTextColor(120, 120, 120); ecrire(doc, mentionRgpd(), 20, 272, 170, 7, 1.25); doc.setTextColor(20, 20, 20);
+}
+const candidatsRelance = () => S.autos.filter(a => !a.orphelin && (aRenouveler(a) || (a.statut_effectif === "expiree" && a.jours_restants >= -30)) &&
+  (!a.relance_le || (Date.now() - new Date(a.relance_le)) > 20 * 864e5));
+async function genererRelances(ids, demander = true) {
+  const autos = ids.map(id => S.autos.find(a => a.id === id)).filter(a => a && !a.orphelin && ["active", "expiree"].includes(a.statut_effectif));
+  if (!autos.length) return toast("Aucun courrier à produire (rien à renouveler, ou riverains déjà relancés depuis moins de 20 jours).", "err");
+  if (demander && autos.length > 1 && !await confirmer("Courriers de relance", `${autos.length} courrier(s) vont être générés dans un seul PDF, un par page, prêts à imprimer et à mettre sous enveloppe (format fenêtre à droite).<br><span class="petit mut">Les riverains déjà relancés depuis moins de 20 jours sont exclus.</span>`, { ok: "Générer les courriers" })) return;
+  const doc = nouveauPdf("Courriers de relance — Stationnement Pasly");
+  autos.forEach((a, i) => { if (i) doc.addPage(); pageRelance(doc, a); });
+  ouvrirPdf(doc, `relances-stationnement-${aujourdhui()}.pdf`);
+  const t = maintenant(); autos.forEach(a => { (L.liens[a.id] || (L.liens[a.id] = { numero: a.numero })).relance_le = t; });
+  journalLocal("courriers de relance", "autorisation", autos.map(a => a.numero).join(", "));
+  await sauverLocal(); toast(`${autos.length} courrier(s) de relance généré(s).`, "ok");
+  if (["tableau", "autorisations"].includes(pageCourante)) afficherPage();
+}
+function genererFormulaire() {
+  const p = S.params, c1 = hexRgb(p.couleur_principale || "#1d4f8c");
+  const doc = nouveauPdf("Formulaire de demande — Stationnement riverain"); enteteMairie(doc);
+  doc.setTextColor(...c1); doc.setFont("helvetica", "bold"); doc.setFontSize(13.5);
+  doc.text("DEMANDE D'AUTORISATION DE STATIONNEMENT RIVERAIN", 105, 50, { align: "center" });
+  doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(90, 90, 90); doc.text(String(p.arrete_reference || ""), 105, 55, { align: "center" });
+  let y = 64; doc.setTextColor(20, 20, 20);
+  const section = t => { doc.setFillColor(236, 241, 248); doc.rect(20, y - 4.6, 170, 6.6, "F"); doc.setTextColor(...c1); doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.text(t, 22, y); y += 8.5; doc.setTextColor(20, 20, 20); doc.setFont("helvetica", "normal"); doc.setFontSize(10); };
+  const ligne = (lib, x, xf) => { doc.text(lib, x, y); const d = x + doc.getTextWidth(lib) + 1.5; doc.setDrawColor(140); doc.setLineDashPattern([0.4, 0.9], 0); doc.line(d, y + 0.6, xf, y + 0.6); doc.setLineDashPattern([], 0); };
+  const caseC = (lib, x) => { doc.setDrawColor(60); doc.rect(x, y - 3.1, 3.4, 3.4); doc.text(lib, x + 5.2, y); };
+  section("1. Demandeur");
+  caseC("Madame", 22); caseC("Monsieur", 52); y += 8;
+  ligne("Nom :", 22, 102); ligne("Prénom :", 106, 190); y += 8.5;
+  ligne("N° :", 22, 45); ligne("Rue (Pasly) :", 49, 190); y += 8.5;
+  ligne("Complément d'adresse :", 22, 190); y += 8.5;
+  ligne("Téléphone :", 22, 95); ligne("Courriel (facultatif) :", 99, 190); y += 10;
+  section(`2. Véhicule(s) — ${+p.max_autorisations_foyer || 1} autorisation(s) maximum par foyer`);
+  for (let i = 1; i <= Math.min(Math.max(+p.max_autorisations_foyer || 1, 1), 3); i++) { doc.setFont("helvetica", "bold"); doc.text(`Véhicule ${i}`, 22, y); doc.setFont("helvetica", "normal"); ligne("Immatriculation :", 44, 102); ligne("Marque / modèle :", 106, 190); y += 8.5; }
+  y += 1.5;
+  section("3. Pièces à joindre (originaux présentés en mairie)");
+  caseC("Justificatif de domicile de moins de 3 mois au nom du demandeur", 22); y += 5.2;
+  doc.setFontSize(8); doc.setTextColor(90, 90, 90); doc.text(`(${(p.types_justificatif || []).filter(x => x !== "Autre").join(", ")})`, 27.2, y, { maxWidth: 160 }); doc.setFontSize(10); doc.setTextColor(20, 20, 20); y += 6.5;
+  caseC("Certificat d'immatriculation (carte grise) de chaque véhicule", 22); y += 10;
+  section("4. Engagement");
+  y = ecrire(doc, "Je certifie sur l'honneur l'exactitude des renseignements ci-dessus et m'engage à signaler à la mairie tout changement (adresse, véhicule). J'ai pris connaissance de l'arrêté municipal réglementant le stationnement riverain : l'autorisation n'est valable que pour le véhicule et la rue indiqués sur le macaron.", 22, y, 166, 9, 1.3);
+  y += 5; ligne("Fait à Pasly, le", 22, 90); doc.text("Signature :", 120, y); y += 16;
+  doc.setDrawColor(...c1); doc.setLineWidth(.5); doc.rect(20, y - 5, 170, 33); doc.setLineWidth(.2);
+  doc.setTextColor(...c1); doc.setFont("helvetica", "bold"); doc.setFontSize(9.5); doc.text("CADRE RÉSERVÉ À LA MAIRIE", 23, y); doc.setTextColor(20, 20, 20); doc.setFont("helvetica", "normal"); y += 7;
+  ligne("Reçue le :", 23, 70); ligne("N° de demande :", 74, 130); ligne("Agent :", 134, 187); y += 8;
+  caseC("Justificatif vérifié", 23); caseC("Carte grise vérifiée", 70); ligne("Rue autorisée :", 117, 187); y += 8;
+  caseC("Accordée — N° d'autorisation :", 23); doc.setDrawColor(140); doc.setLineDashPattern([0.4, 0.9], 0); doc.line(80, y + 0.6, 112, y + 0.6); doc.setLineDashPattern([], 0); caseC("Refusée — motif :", 117); doc.line(150, y + 0.6, 187, y + 0.6);
+  doc.setFontSize(6.8); doc.setTextColor(110, 110, 110); ecrire(doc, mentionRgpd(), 20, 270, 170, 6.8, 1.25);
+  ouvrirPdf(doc, "formulaire-demande-stationnement-riverain.pdf");
+}
+function genererRecepisse(demIds) {
+  const ds = demIds.map(id => L.demandes.find(d => d.id === id)).filter(Boolean); if (!ds.length) return;
+  const r = riv(ds[0].riverain_id) || {}, p = S.params, c1 = hexRgb(p.couleur_principale || "#1d4f8c");
+  const doc = nouveauPdf("Récépissé de dépôt — Stationnement riverain"); enteteMairie(doc);
+  doc.setTextColor(...c1); doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.text("RÉCÉPISSÉ DE DÉPÔT DE DEMANDE", 105, 52, { align: "center" });
+  doc.setFontSize(10); doc.text("Autorisation de stationnement riverain", 105, 58, { align: "center" });
+  doc.setTextColor(20, 20, 20);
+  let y = 72; const champ = (lib, val) => { doc.setFont("helvetica", "normal"); doc.setTextColor(90, 90, 90); doc.text(lib, 22, y); doc.setTextColor(20, 20, 20); doc.setFont("helvetica", "bold"); doc.text(String(val || "—"), 70, y); y += 7; };
+  doc.setFontSize(10.5);
+  champ("Demandeur", `${r.civilite ? r.civilite + " " : ""}${nomComplet(r)}`);
+  champ("Adresse", [r.adresse, r.complement].filter(Boolean).join(", ") + ` — ${r.code_postal || "02200"} ${r.commune || "Pasly"}`);
+  champ("Demande reçue le", fd(ds[0].date_reception));
+  champ("Enregistrée par", ds[0].agent_nom);
+  y += 4; doc.setFont("helvetica", "bold"); doc.setTextColor(...c1); doc.text("Véhicule(s) et suite donnée", 22, y); y += 3;
+  doc.setDrawColor(200); doc.setFillColor(236, 241, 248); doc.rect(20, y, 170, 7, "F");
+  doc.setFontSize(9); doc.setTextColor(60, 60, 60); doc.text("N° de demande", 22, y + 4.8); doc.text("Véhicule", 60, y + 4.8); doc.text("Justificatif", 98, y + 4.8); doc.text("Suite", 128, y + 4.8); y += 7;
+  doc.setTextColor(20, 20, 20); doc.setFont("helvetica", "normal");
+  for (const d of ds) {
+    const v = veh(d.vehicule_id), a = S.autos.find(x => x.id === d.autorisation_id);
+    const suite = d.statut === "validee" ? `Accordée : n° ${a?.numero || ""}, ${a?.zone || ""}, jusqu'au ${fd(a?.date_fin)}` : d.statut === "refusee" ? `Refusée : ${d.motif_refus || ""}` : "En cours d'instruction";
+    const l = doc.splitTextToSize(suite, 60); const hgt = Math.max(7, l.length * 4.2 + 3);
+    doc.text(d.numero, 22, y + 4.8); doc.text(`${fPlaque(v?.immatriculation)} ${[v?.marque, v?.modele].filter(Boolean).join(" ")}`.slice(0, 26), 60, y + 4.8);
+    doc.text(d.justificatif_verifie ? "Vérifié" : "À fournir", 98, y + 4.8); doc.text(l, 128, y + 4.8, { lineHeightFactor: 1.2 });
+    y += hgt; doc.line(20, y, 190, y);
+  }
+  y += 9; doc.setFontSize(10);
+  y = ecrire(doc, "Le présent récépissé atteste du dépôt de la demande en mairie. Il ne vaut pas autorisation de stationnement : seul le macaron délivré par la mairie, en cours de validité et correspondant au véhicule, fait foi.", 20, y, 170, 10, 1.35);
+  if (ds.some(d => d.statut === "en_attente")) y = ecrire(doc, "La mairie vous informera de la suite donnée à votre demande. Pour toute question, contactez le secrétariat de mairie.", 20, y + 3, 170, 10, 1.35);
+  y += 10; doc.text(`Pasly, le ${new Date().toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}`, 22, y);
+  doc.text("Pour le Maire, l'agent :", 120, y); doc.setFont("helvetica", "bold"); doc.text(String(ds[0].agent_nom || ""), 120, y + 6); doc.setFont("helvetica", "normal");
+  doc.setFontSize(8.5); doc.setTextColor(120, 120, 120); doc.text("Cachet de la mairie", 120, y + 26);
+  doc.setFontSize(7); ecrire(doc, mentionRgpd(), 20, 272, 170, 7, 1.25);
+  ouvrirPdf(doc, `recepisse-${ds[0].numero}.pdf`);
+  journalLocal("récépissé", "demande", ds.map(d => d.numero).join(", ")); sauverLocal();
+}
+
+/* =====================================================================
+   v2.2 — NETTOYAGE RGPD DES FICHES
+   ===================================================================== */
+function derniereActivite(r) {
+  const ds = [r.updated_at, r.created_at];
+  L.demandes.filter(d => d.riverain_id === r.id).forEach(d => ds.push(d.date_decision, d.date_reception, d.created_at));
+  S.autos.filter(a => a.riverain_id === r.id).forEach(a => ds.push(a.date_fin, a.updated_at));
+  return ds.filter(Boolean).map(versDate).sort((a, b) => b - a)[0] || new Date();
+}
+function fichesAPurger() {
+  const lim = new Date(); lim.setMonth(lim.getMonth() - (+S.params.conservation_fiches_mois || 24));
+  const t = aujourdhui();
+  return L.riverains.filter(r => !r.demo || true).filter(r =>
+    !S.autos.some(a => a.riverain_id === r.id && ["active", "suspendue"].includes(a.statut) && a.date_fin >= t) &&
+    !L.demandes.some(d => d.riverain_id === r.id && d.statut === "en_attente") &&
+    derniereActivite(r) < lim);
+}
+async function purgerFiches(ids) {
+  if (!estAdmin()) return toast("Réservé à l'administrateur.", "err");
+  const set = new Set(ids), autIds = S.autos.filter(a => set.has(a.riverain_id)).map(a => a.id);
+  if (!await confirmer("Supprimer les fiches (RGPD)", `${ids.length} fiche(s) de riverains sans autorisation en cours depuis plus de ${+S.params.conservation_fiches_mois || 24} mois vont être <b>définitivement supprimées</b> de ce poste, ainsi que leurs ${autIds.length} autorisation(s) échue(s) au registre.`, { danger: true, ok: "Supprimer définitivement", saisie: "SUPPRIMER" })) return;
+  try {
+    chargement(true);
+    if (autIds.length) await req(sb.from("sta_autorisations").delete().in("id", autIds));
+    S.serveur = S.serveur.filter(a => !autIds.includes(a.id)); autIds.forEach(i => delete L.liens[i]);
+    L.riverains = L.riverains.filter(r => !set.has(r.id)); L.vehicules = L.vehicules.filter(v => !set.has(v.riverain_id)); L.demandes = L.demandes.filter(d => !set.has(d.riverain_id));
+    journalLocal("purge RGPD", "riverain", `${ids.length} fiche(s) supprimée(s) — durée de conservation dépassée`, { autorisations_retirees: autIds.length });
+    await sauverLocal(); chargement(false); toast(`${ids.length} fiche(s) supprimée(s).`, "ok"); afficherPage();
+  } catch (e) { chargement(false); erreur(e); }
+}
+
+/* =====================================================================
+   v2.2 — STATISTIQUES DE CONTRÔLE
+   ===================================================================== */
+function statsControles(l) {
+  if (!l.length) return "";
+  const tot = l.length, nc = x => x.resultat !== "valide";
+  const parRes = {}; l.forEach(x => parRes[x.resultat] = (parRes[x.resultat] || 0) + 1);
+  const ajouter = (o, k, x) => { (o[k] ||= { n: 0, inf: 0 }); o[k].n++; if (nc(x)) o[k].inf++; };
+  const parMois = {}, parRue = {}, parAgent = {};
+  l.forEach(x => {
+    ajouter(parMois, x.horodatage.slice(0, 7), x); ajouter(parAgent, x.agent_nom || "—", x);
+    ajouter(parRue, x.autorisation_id ? (S.serveur.find(a => a.id === x.autorisation_id)?.zone || "Autorisation supprimée") : "Macaron / n° inconnu", x);
+  });
+  const couleurs = { valide: "var(--vert)", expiree: "var(--rouge)", annulee: "var(--rouge)", suspendue: "var(--orange)", inconnu: "var(--gris)" };
+  const tableau = (titre, o, fmt = k => k, tri = (a, b) => b[1].n - a[1].n) => `<div><h3>${titre}</h3><table><thead><tr><th></th><th>Contrôles</th><th>Non conformes</th><th style="width:34%">Taux</th></tr></thead><tbody>
+    ${Object.entries(o).sort(tri).map(([k, v]) => { const t = Math.round(100 * v.inf / v.n); return `<tr><td>${esc(fmt(k))}</td><td>${v.n}</td><td>${v.inf}</td><td><div style="display:flex;align-items:center;gap:6px"><div style="height:8px;border-radius:4px;background:${t > 30 ? "var(--rouge)" : t > 10 ? "var(--orange)" : "var(--vert)"};width:${Math.max(t, 2)}%"></div><span class="petit" style="white-space:nowrap">${t} %</span></div></td></tr>`; }).join("")}</tbody></table></div>`;
+  const mois = k => { const [a, m] = k.split("-"); return new Date(+a, +m - 1, 1).toLocaleDateString("fr-FR", { month: "long", year: "numeric" }); };
+  return `<div class="grille-tuiles" style="margin-bottom:14px">
+    <div class="tuile" style="cursor:default"><div class="val">${tot}</div><div class="lib">Contrôles sur la période</div></div>
+    ${["valide", "expiree", "suspendue", "annulee", "inconnu"].filter(k => parRes[k]).map(k => `<div class="tuile" style="cursor:default;border-left-color:${couleurs[k]}"><div class="val">${parRes[k]}</div><div class="lib">${LIB[k]} (${Math.round(100 * parRes[k] / tot)} %)</div></div>`).join("")}
+  </div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(400px,1fr));gap:16px;margin-bottom:16px">${tableau("Par mois", parMois, mois, (a, b) => b[0].localeCompare(a[0]))}${tableau("Par rue", parRue)}${tableau("Par agent", parAgent)}</div>`;
+}
+
+/* =====================================================================
+   v2.2 — INSTALLATION SUR LE TÉLÉPHONE (application web)
+   ===================================================================== */
+let invitationInstall = null;
+window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); invitationInstall = e; const b = $("#btn-installer"); if (b) b.classList.remove("cache"); });
+if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => { });
+const estInstallee = () => window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+function aideInstallation() {
+  if (estInstallee()) return "";
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  return `<div class="bandeau info" id="aide-install" style="margin-top:14px">📲 <b>Installer l'application sur ce téléphone</b> : ${ios ? "dans Safari, touchez le bouton <b>Partager</b> puis <b>« Sur l'écran d'accueil »</b>." : `<button class="btn mini p ${invitationInstall ? "" : "cache"}" id="btn-installer">Installer</button> <span>ou menu du navigateur → « Ajouter à l'écran d'accueil ».</span>`}</div>`;
+}
+function brancherInstallation(c) {
+  $("#btn-installer", c)?.addEventListener("click", async () => { if (!invitationInstall) return; invitationInstall.prompt(); await invitationInstall.userChoice; invitationInstall = null; $("#aide-install")?.remove(); });
+}
+
+/* =====================================================================
+   v2.2 — CONNEXION : aide à la saisie, mot de passe oublié, lien de réinitialisation
+   ===================================================================== */
+const DOMAINES_COURANTS = ["gmail.com", "hotmail.com", "hotmail.fr", "outlook.com", "outlook.fr", "live.fr", "orange.fr", "wanadoo.fr", "free.fr", "sfr.fr", "laposte.net", "yahoo.fr", "yahoo.com", "icloud.com", "pasly.fr"];
+function distance(a, b) { const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]); for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); return d[a.length][b.length]; }
+function verifierEmail(apresEchec = false) {
+  const champ = $("#cnx-email"), aide = $("#cnx-aide"); const v = champ.value.trim().toLowerCase(); const dern = localStorage.getItem("sta-dernier-email") || "";
+  const [loc, dom = ""] = v.split("@"); let msg = "";
+  if (dom && !DOMAINES_COURANTS.includes(dom)) { const p = DOMAINES_COURANTS.find(d => distance(d, dom) <= 2); if (p) msg = `Vouliez-vous dire <b>${esc(loc)}@${p}</b> ? <a href="#" data-mail="${esc(loc)}@${p}">Corriger</a>`; }
+  if (!msg && dern && v && v !== dern && (apresEchec || loc === dern.split("@")[0])) msg = `Dernière connexion réussie sur cet appareil : <b>${esc(dern)}</b>. <a href="#" data-mail="${esc(dern)}">Utiliser cette adresse</a>`;
+  aide.innerHTML = msg; aide.classList.toggle("cache", !msg);
+  $$("[data-mail]", aide).forEach(l => l.onclick = e => { e.preventDefault(); champ.value = l.dataset.mail; verifierEmail(); $("#cnx-mdp").focus(); });
+}
+
 const RENDUS = { tableau: rendreTableau, demande: rendreDemande, riverains: rendreRiverains, vehicules: rendreVehicules, autorisations: rendreAutorisations,
   macarons: rendreMacarons, controle: rendreControle, historique: rendreHistorique, parametres: rendreParametres };
 
@@ -1645,18 +1899,28 @@ function montrer(ecran) {
   $(ecran).classList.remove("cache");
   $("#ecran-mdp").style.display = ecran === "#ecran-mdp" ? "flex" : "none";
 }
-function afficherConnexion(msg) {
+function afficherConnexion(msg, type = "alerte") {
   S.moi = null; montrer("#ecran-connexion");
   $("#info-qr").classList.toggle("cache", !sessionStorage.getItem("sta-qr"));
-  const e = $("#cnx-erreur"); e.classList.toggle("cache", !msg); e.textContent = msg || "";
-  setTimeout(() => $("#cnx-email").focus(), 50);
+  const e = $("#cnx-erreur"); e.className = "bandeau " + type + (msg ? "" : " cache"); e.textContent = msg || "";
+  const ch = $("#cnx-email"); if (!ch.value && localStorage.getItem("sta-dernier-email")) ch.value = localStorage.getItem("sta-dernier-email");
+  setTimeout(() => (ch.value ? $("#cnx-mdp") : ch).focus(), 50);
 }
+$("#cnx-email").addEventListener("input", () => verifierEmail());
+$("#cnx-oubli").onclick = async e => {
+  e.preventDefault(); const em = $("#cnx-email").value.trim().toLowerCase();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) return afficherConnexion("Saisissez d'abord votre adresse électronique ci-dessus, puis touchez « Mot de passe oublié ? ».");
+  const { error } = await sb.auth.resetPasswordForEmail(em, { redirectTo: location.origin + location.pathname });
+  if (error) return afficherConnexion(/rate|seconds/i.test(error.message) ? "Trop de demandes : patientez quelques minutes avant de réessayer." : messageErreur(error));
+  afficherConnexion(`Si un compte existe pour ${em}, un e-mail de réinitialisation vient d'être envoyé. Ouvrez le lien qu'il contient sur cet appareil (pensez à vérifier les indésirables).`, "info");
+};
 $("#form-cnx").onsubmit = async e => {
   e.preventDefault(); const b = $("#cnx-btn"); b.disabled = true; b.textContent = "Connexion…";
   const { error } = await sb.auth.signInWithPassword({ email: $("#cnx-email").value.trim(), password: $("#cnx-mdp").value });
   b.disabled = false; b.textContent = "Se connecter";
-  if (error) return afficherConnexion(/invalid/i.test(error.message) ? "Identifiant ou mot de passe incorrect." : messageErreur(error));
-  $("#cnx-mdp").value = "";
+  if (error) { afficherConnexion(/invalid/i.test(error.message) ? "Identifiant ou mot de passe incorrect. Vérifiez l'adresse (gmail, hotmail…) et les majuscules du mot de passe." : messageErreur(error)); verifierEmail(true); return; }
+  localStorage.setItem("sta-dernier-email", $("#cnx-email").value.trim().toLowerCase());
+  $("#cnx-mdp").value = ""; $("#cnx-aide").classList.add("cache");
   await apresConnexion();
 };
 async function apresConnexion() {
@@ -1666,7 +1930,11 @@ async function apresConnexion() {
     if (!r?.autorise) { await sb.auth.signOut(); chargement(false); return afficherConnexion("Ce compte n'est pas habilité pour l'application Stationnement, ou il a été désactivé. Contactez l'administrateur."); }
     const { data: { user } } = await sb.auth.getUser();
     S.moi = { ...r, user_id: user.id };
-    if (r.doit_changer_mdp) { chargement(false); montrer("#ecran-mdp"); return; }
+    if (r.doit_changer_mdp || MODE_RECUP) {
+      chargement(false); montrer("#ecran-mdp");
+      if (MODE_RECUP) { $("#mdp-titre").textContent = "Nouveau mot de passe"; $("#mdp-texte").textContent = "Choisissez votre nouveau mot de passe : 10 caractères minimum, avec des lettres et des chiffres. Il remplace l'ancien pour toutes les applications de la mairie utilisant ce compte."; }
+      return;
+    }
     await demarrerApplication();
   } catch (e) { chargement(false); afficherConnexion(messageErreur(e)); }
 }
@@ -1674,7 +1942,7 @@ $("#form-mdp-oblig").onsubmit = async e => {
   e.preventDefault(); const a = $("#mdp1").value, b = $("#mdp2").value;
   if (!mdpOk(a)) return toast("Mot de passe trop faible : 10 caractères minimum, lettres et chiffres.", "err");
   if (a !== b) return toast("Les deux saisies diffèrent.", "err");
-  try { const { error } = await sb.auth.updateUser({ password: a }); if (error) throw error; await rpc("sta_mdp_change"); S.moi.doit_changer_mdp = false; toast("Mot de passe enregistré.", "ok"); await demarrerApplication(); }
+  try { const { error } = await sb.auth.updateUser({ password: a }); if (error) throw error; await rpc("sta_mdp_change"); S.moi.doit_changer_mdp = false; MODE_RECUP = false; localStorage.setItem("sta-dernier-email", S.moi.email); toast("Mot de passe enregistré.", "ok"); await demarrerApplication(); }
   catch (e2) { erreur(e2); }
 };
 async function demarrerApplication() {
@@ -1698,6 +1966,9 @@ let dernierMouvement = Date.now();
 setInterval(() => { if (S.moi && Date.now() - dernierMouvement > DELAI_INACTIVITE_MIN * 60000) deconnexion(`Déconnexion automatique après ${DELAI_INACTIVITE_MIN} minutes d'inactivité.`); }, 30000);
 
 (async function init() {
+  const erreurLien = /error_description=([^&]+)/.exec(HASH_INITIAL);
+  if (MODE_RECUP || erreurLien || /access_token=/.test(HASH_INITIAL)) history.replaceState(null, "", location.pathname + location.search);
+  if (erreurLien) { MODE_RECUP = false; await sb.auth.getSession(); return afficherConnexion("Lien de réinitialisation invalide ou expiré : refaites la demande avec « Mot de passe oublié ? »."); }
   const prm = new URLSearchParams(location.search);
   if (prm.get("c")) { sessionStorage.setItem("sta-qr", prm.get("c")); history.replaceState(null, "", location.pathname + "#/controle"); }
   const { data: { session } } = await sb.auth.getSession();
