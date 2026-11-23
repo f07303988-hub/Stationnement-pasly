@@ -270,7 +270,7 @@ tr.clic{cursor:pointer} tr.clic:hover td{background:#f8fafd}
    ===================================================================== */
 const SUPABASE_URL = "https://idswkljjaoajhevgsnfh.supabase.co";
 const SUPABASE_CLE = "sb_publishable_kaRpfQPyPZUKjLkWOEyUTQ_vRKLLU7c";
-const VERSION = "2.3.2";
+const VERSION = "2.3.3";
 const DELAI_INACTIVITE_MIN = 45;
 const APP_LOCAL = "Stationnement Pasly — données locales";
 const APP_REGISTRE = "Stationnement Pasly — registre anonyme";
@@ -596,17 +596,18 @@ async function chargerTout() {
 }
 /* Blason officiel publié avec l'application (logo-pasly.png), utilisé tant qu'aucun autre logo n'est enregistré */
 let LOGO_DEFAUT = null;
+const LOGO_VERSION = "origine-20261123b"; // à changer à chaque remplacement du fichier logo-pasly.png
 async function logoParDefaut() {
   if (S.params.logo_aucun) return;
   try {
-    if (!LOGO_DEFAUT) LOGO_DEFAUT = await new Promise((ok, ko) => { const img = new Image(); img.onload = () => { const c = document.createElement("canvas"); c.width = img.naturalWidth; c.height = img.naturalHeight; c.getContext("2d").drawImage(img, 0, 0); ok({ logo: c.toDataURL("image/png"), ratio: img.naturalWidth / img.naturalHeight }); }; img.onerror = ko; img.src = "logo-pasly.png"; });
+    if (!LOGO_DEFAUT) LOGO_DEFAUT = await new Promise((ok, ko) => { const img = new Image(); img.onload = () => { const c = document.createElement("canvas"); c.width = img.naturalWidth; c.height = img.naturalHeight; c.getContext("2d").drawImage(img, 0, 0); ok({ logo: c.toDataURL("image/png"), ratio: img.naturalWidth / img.naturalHeight }); }; img.onerror = ko; img.src = "logo-pasly.png?v=" + LOGO_VERSION; });
     S.params.logo = LOGO_DEFAUT.logo; S.params.logo_ratio = LOGO_DEFAUT.ratio; S.params.logo_defaut = true;
   } catch { }
 }
 function afficherLogo() {
   let logo = S.params.logo || localStorage.getItem("sta-logo") || "";
-  if (S.moi && S.moi.role !== "controleur") { try { if (S.params.logo) localStorage.setItem("sta-logo", S.params.logo); else localStorage.removeItem("sta-logo"); } catch { } }
-  if (!logo && !S.params.logo_aucun) logo = "logo-pasly.png";
+  if (S.moi && S.moi.role !== "controleur") { try { if (S.params.logo && !S.params.logo_defaut) localStorage.setItem("sta-logo", S.params.logo); else localStorage.removeItem("sta-logo"); } catch { } }
+  if (!logo && !S.params.logo_aucun) logo = "logo-pasly.png?v=" + LOGO_VERSION;
   const c = $("#logo-cnx"), m = $("#logo-menu");
   if (logo) { c.innerHTML = `<img src="${logo}" alt="Logo de Pasly" style="max-width:100%;max-height:100%">`; c.style.background = "#fff"; c.style.borderBottomColor = "transparent"; m.src = logo; m.classList.remove("cache"); }
   else { c.textContent = "P"; c.style.background = ""; c.style.borderBottomColor = ""; m.classList.add("cache"); }
