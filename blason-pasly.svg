@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 420" width="600" height="840">
+  <title>Blason de la commune de Pasly (Aisne)</title>
+  <desc>Taillé : au 1er d'azur à la feuille de groseillier d'or posée en barre, au 2e de sinople à la pomme de pin d'or posée en barre ; à la cotice en barre d'argent brochant sur la partition et chargée, en chef, de trois lionceaux de gueules et, en pointe, de trois fleurs de lis d'or. Chef portant la mention PASLY. Redessin vectoriel.</desc>
+  <defs>
+    <clipPath id="ecu"><path d="M10,10 H290 V280 C290,338 205,352 150,410 C95,352 10,338 10,280 Z"/></clipPath>
+    <clipPath id="champ"><path d="M10,68 H290 V280 C290,338 205,352 150,410 C95,352 10,338 10,280 Z"/></clipPath>
+    <symbol id="lis" viewBox="0 0 100 100">
+      <g fill="#c9a043" stroke="#5b4520" stroke-width="3" stroke-linejoin="round">
+        <path d="M50,4 C60,18 64,36 59,54 L55,66 H45 L41,54 C36,36 40,18 50,4 Z"/>
+        <path d="M44,60 C31,63 16,56 13,42 C11,31 20,24 29,28 C22,33 24,44 35,48 C41,50 45,54 44,60 Z"/>
+        <path d="M56,60 C69,63 84,56 87,42 C89,31 80,24 71,28 C78,33 76,44 65,48 C59,50 55,54 56,60 Z"/>
+        <rect x="30" y="59" width="40" height="9" rx="2"/>
+        <path d="M43,68 L37,92 L50,83 L63,92 L57,68 Z"/>
+      </g>
+    </symbol>
+    <symbol id="lion" viewBox="0 0 100 100">
+      <g fill="#c62f3b" stroke="#5a1418" stroke-width="2.6" stroke-linejoin="round">
+        <!-- lionceau rampant, tourné vers la dextre -->
+        <path d="M30,22 C30,12 40,6 48,10 C52,6 58,8 58,14 C62,16 62,22 58,24 L60,30 L54,30 L50,27 L48,32
+                 C56,34 62,42 63,50 C72,48 80,40 80,30 C80,24 76,20 72,20 C78,16 88,22 88,32 C88,46 76,58 64,60
+                 L64,64 C68,70 72,78 80,82 L76,90 L66,86 L62,92 L56,92 L58,84 C52,82 46,78 44,72 L40,80 L44,90 L36,94 L30,90 L34,78
+                 C30,70 30,62 34,56 C30,54 26,50 26,46 L16,48 L12,42 L22,38 L14,34 L14,28 L26,32 C26,28 28,24 30,22 Z"/>
+        <path d="M36,40 L20,30 M38,46 L18,42" fill="none"/>
+      </g>
+      <circle cx="44" cy="17" r="2.2" fill="#fff"/>
+    </symbol>
+    <symbol id="feuille" viewBox="0 0 100 100">
+      <g stroke="#5b4520" stroke-width="2.4" stroke-linejoin="round">
+        <path fill="#c9a043" d="M50,96 L49,80 C40,85 27,85 18,77 C25,72 27,66 23,60 C12,60 4,51 5,40 C13,43 20,41 24,35
+          C17,27 19,15 28,8 C33,17 40,21 47,19 C46,11 50,4 57,2 C60,11 64,17 72,17 C76,10 86,8 95,11 C90,19 88,28 92,34
+          C98,37 101,46 98,54 C90,53 84,57 81,63 C86,69 86,78 80,84 C72,81 62,80 55,78 L53,96 Z"/>
+        <path fill="none" d="M51,92 L52,74 L50,52 L38,24 M50,52 L66,22 M51,60 L82,44 M51,62 L22,50 M52,72 L70,74 M51,70 L32,70"/>
+      </g>
+    </symbol>
+    <symbol id="pin" viewBox="0 0 100 100">
+      <clipPath id="cone"><path d="M50,8 C64,8 74,28 74,54 C74,78 64,95 50,95 C36,95 26,78 26,54 C26,28 36,8 50,8 Z"/></clipPath>
+      <g stroke="#5b4520" stroke-width="2.6">
+        <path fill="#c9a043" d="M50,8 C64,8 74,28 74,54 C74,78 64,95 50,95 C36,95 26,78 26,54 C26,28 36,8 50,8 Z"/>
+        <g clip-path="url(#cone)" fill="none" stroke-width="2">
+          <path d="M8,30 Q20,20 32,30 Q44,20 56,30 Q68,20 80,30 Q92,20 104,30"/>
+          <path d="M2,44 Q14,34 26,44 Q38,34 50,44 Q62,34 74,44 Q86,34 98,44"/>
+          <path d="M8,58 Q20,48 32,58 Q44,48 56,58 Q68,48 80,58 Q92,48 104,58"/>
+          <path d="M2,72 Q14,62 26,72 Q38,62 50,72 Q62,62 74,72 Q86,62 98,72"/>
+          <path d="M8,86 Q20,76 32,86 Q44,76 56,86 Q68,76 80,86 Q92,76 104,86"/>
+          <path d="M20,8 V100 M38,0 V100 M50,0 V100 M62,0 V100 M80,8 V100" stroke-dasharray="0" opacity=".35"/>
+        </g>
+        <path fill="#c9a043" d="M46,8 L45,0 L55,0 L54,8 Z"/>
+      </g>
+    </symbol>
+  </defs>
+
+  <g clip-path="url(#ecu)">
+    <!-- chef portant la mention -->
+    <rect x="0" y="0" width="300" height="68" fill="#ffffff"/>
+    <!-- champ taillé : azur en haut à dextre, sinople en bas à senestre -->
+    <g clip-path="url(#champ)">
+      <rect x="0" y="60" width="300" height="360" fill="#3f8f6e"/>
+      <path d="M0,60 H300 V60 L300,61 L0,316 Z" fill="#3d5fa8"/>
+      <!-- cotice en barre d'argent -->
+      <path d="M300,48 L300,92 L0,347 L0,303 Z" fill="#ffffff" stroke="#3a3a3a" stroke-width="2"/>
+    </g>
+    <line x1="10" y1="68" x2="290" y2="68" stroke="#3a3a3a" stroke-width="2.5"/>
+  </g>
+
+  <!-- meubles -->
+  <use href="#feuille" x="52" y="86" width="104" height="104" transform="rotate(-38 104 138)"/>
+  <use href="#pin" x="160" y="228" width="96" height="96" transform="rotate(-130 208 276)"/>
+  <!-- trois lionceaux en chef (vers le haut de la cotice), trois fleurs de lis en pointe -->
+  <use href="#lion" x="246" y="88" width="31" height="31"/>
+  <use href="#lion" x="209" y="119" width="31" height="31"/>
+  <use href="#lion" x="172" y="151" width="31" height="31"/>
+  <use href="#lis" x="132" y="187" width="30" height="30"/>
+  <use href="#lis" x="95" y="219" width="30" height="30"/>
+  <use href="#lis" x="58" y="251" width="30" height="30"/>
+
+  <!-- mention du chef -->
+  <text x="150" y="54" text-anchor="middle" font-family="Georgia, 'Times New Roman', 'DejaVu Serif', serif" font-style="italic" font-weight="bold" font-size="46" fill="#4a4a4a" letter-spacing="2">PASLY</text>
+
+  <!-- bordure de l'écu -->
+  <path d="M10,10 H290 V280 C290,338 205,352 150,410 C95,352 10,338 10,280 Z" fill="none" stroke="#3a3a3a" stroke-width="5" stroke-linejoin="round"/>
+</svg>
