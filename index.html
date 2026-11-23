@@ -270,7 +270,7 @@ tr.clic{cursor:pointer} tr.clic:hover td{background:#f8fafd}
    ===================================================================== */
 const SUPABASE_URL = "https://idswkljjaoajhevgsnfh.supabase.co";
 const SUPABASE_CLE = "sb_publishable_kaRpfQPyPZUKjLkWOEyUTQ_vRKLLU7c";
-const VERSION = "2.3.1";
+const VERSION = "2.3.2";
 const DELAI_INACTIVITE_MIN = 45;
 const APP_LOCAL = "Stationnement Pasly — données locales";
 const APP_REGISTRE = "Stationnement Pasly — registre anonyme";
@@ -1528,7 +1528,8 @@ async function rendreParametres(c) {
       <div class="champ"><label>Horaires d'ouverture</label><input type="text" id="p-mhor" value="${esc(p.mairie_horaires || "")}" ${dis}><label style="margin-top:8px">Signataire des courriers</label><textarea id="p-sign" style="min-height:52px" ${dis}>${esc(p.signataire || "Le Maire,\nYohann LECAT")}</textarea></div></div>
     <div class="champ"><label>Texte du courrier de relance</label><textarea id="p-relance" style="min-height:170px" ${dis}>${esc(p.courrier_relance || RELANCE_DEFAUT)}</textarea>
       <div class="aide">Champs remplacés automatiquement : {appel} (« Madame, » / « Monsieur, »), {appel_fin}, {nom}, {prenom}, {numero}, {date_fin}, {rue}, {immatriculation}, {jours}.</div></div>
-    <div class="champ"><label>Mention d'information RGPD (formulaire, récépissé, courriers)</label><textarea id="p-rgpd" style="min-height:110px" ${dis}>${esc(p.mention_rgpd || RGPD_DEFAUT)}</textarea><div class="aide">{conservation} = durée de conservation des fiches ci-dessous.</div></div>
+    <div class="champ"><label class="case"><input type="checkbox" id="p-rgpd-on" ${p.afficher_mention_rgpd === true ? "checked" : ""} ${dis}> Imprimer la mention d'information RGPD en bas du formulaire, du récépissé et des courriers</label></div>
+    <div class="champ"><label>Texte de la mention d'information RGPD</label><textarea id="p-rgpd" style="min-height:110px" ${dis}>${esc(p.mention_rgpd || RGPD_DEFAUT)}</textarea><div class="aide">{conservation} = durée de conservation des fiches ci-dessous.</div></div>
     <div class="actions"><button type="button" class="btn" id="p-test-form">Aperçu du formulaire papier</button><button type="button" class="btn" id="p-test-rel">Aperçu d'un courrier de relance</button></div></div>
   <div class="carte"><h2>Protection des données (RGPD) — durées de conservation</h2>
     <div class="ligne"><div class="champ"><label>Journaux des opérations (mois)</label><input type="number" min="6" id="p-cj" value="${esc(p.conservation_journal_mois ?? 36)}" ${dis}></div>
@@ -1590,7 +1591,7 @@ async function rendreParametres(c) {
       afficher_plaque_macaron: $("#p-plaque", c).checked, url_controle: $("#p-url", c).value.trim(),
       logo: logoEnCours.defaut ? null : logoEnCours.logo, logo_ratio: logoEnCours.defaut ? null : logoEnCours.ratio, logo_aucun: !logoEnCours.logo, logo_defaut: undefined,
       mairie_adresse: $("#p-madr", c).value.trim(), mairie_telephone: $("#p-mtel", c).value.trim(), mairie_courriel: $("#p-mmail", c).value.trim(), mairie_horaires: $("#p-mhor", c).value.trim(),
-      signataire: $("#p-sign", c).value.trim(), courrier_relance: $("#p-relance", c).value.trim(), mention_rgpd: $("#p-rgpd", c).value.trim(), conservation_fiches_mois: Math.max(1, +$("#p-cf", c).value || 24),
+      signataire: $("#p-sign", c).value.trim(), courrier_relance: $("#p-relance", c).value.trim(), mention_rgpd: $("#p-rgpd", c).value.trim(), afficher_mention_rgpd: $("#p-rgpd-on", c).checked, conservation_fiches_mois: Math.max(1, +$("#p-cf", c).value || 24),
       conservation_journal_mois: Math.max(6, +$("#p-cj", c).value || 36), conservation_controles_mois: Math.max(1, +$("#p-cc", c).value || 12), conservation_sauvegardes: Math.min(52, Math.max(3, +$("#p-cs", c).value || 12)) };
     try { await req(sb.from("sta_parametres").update({ data, updated_at: maintenant() }).eq("id", 1)); toast("Paramètres enregistrés.", "ok"); await rafraichir(); } catch (er) { erreur(er); }
   };
@@ -1746,6 +1747,7 @@ function ecrire(doc, texte, x, y, larg, taille = 10.5, inter = 1.35) {
   doc.setFontSize(taille); const lignes = doc.splitTextToSize(String(texte || ""), larg);
   doc.text(lignes, x, y, { lineHeightFactor: inter }); return y + lignes.length * taille * 0.3528 * inter;
 }
+const avecMention = () => S.params.afficher_mention_rgpd === true;
 const mentionRgpd = () => String(S.params.mention_rgpd || RGPD_DEFAUT).replace(/\{conservation\}/g, String(+S.params.conservation_fiches_mois || 24));
 function remplir(t, a) {
   const appel = a.civilite === "Mme" ? "Madame" : a.civilite === "M." ? "Monsieur" : "Madame, Monsieur";
@@ -1766,7 +1768,7 @@ function pageRelance(doc, a) {
   doc.setTextColor(20, 20, 20);
   y = ecrire(doc, remplir(p.courrier_relance || RELANCE_DEFAUT, a), 20, y + 11, 170, 10.5, 1.45);
   doc.setFontSize(10.5); doc.text(String(p.signataire || "Le Maire,").split("\n"), 125, Math.max(y + 14, 205), { lineHeightFactor: 1.4 });
-  doc.setFontSize(7); doc.setTextColor(120, 120, 120); ecrire(doc, mentionRgpd(), 20, 272, 170, 7, 1.25); doc.setTextColor(20, 20, 20);
+  if (avecMention()) { doc.setFontSize(7); doc.setTextColor(120, 120, 120); ecrire(doc, mentionRgpd(), 20, 272, 170, 7, 1.25); } doc.setTextColor(20, 20, 20);
 }
 const candidatsRelance = () => S.autos.filter(a => !a.orphelin && (aRenouveler(a) || (a.statut_effectif === "expiree" && a.jours_restants >= -30)) &&
   (!a.relance_le || (Date.now() - new Date(a.relance_le)) > 20 * 864e5));
@@ -1813,7 +1815,7 @@ function genererFormulaire() {
   ligne("Reçue le :", 23, 70); ligne("N° de demande :", 74, 130); ligne("Agent :", 134, 187); y += 8;
   caseC("Justificatif vérifié", 23); caseC("Carte grise vérifiée", 70); ligne("Rue autorisée :", 117, 187); y += 8;
   caseC("Accordée — N° d'autorisation :", 23); doc.setDrawColor(140); doc.setLineDashPattern([0.4, 0.9], 0); doc.line(80, y + 0.6, 112, y + 0.6); doc.setLineDashPattern([], 0); caseC("Refusée — motif :", 117); doc.line(150, y + 0.6, 187, y + 0.6);
-  doc.setFontSize(6.8); doc.setTextColor(110, 110, 110); ecrire(doc, mentionRgpd(), 20, 270, 170, 6.8, 1.25);
+  if (avecMention()) { doc.setFontSize(6.8); doc.setTextColor(110, 110, 110); ecrire(doc, mentionRgpd(), 20, 270, 170, 6.8, 1.25); }
   ouvrirPdf(doc, "formulaire-demande-stationnement-riverain.pdf");
 }
 function genererRecepisse(demIds) {
@@ -1847,7 +1849,7 @@ function genererRecepisse(demIds) {
   y += 10; doc.text(`Pasly, le ${new Date().toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}`, 22, y);
   doc.text("Pour le Maire, l'agent :", 120, y); doc.setFont("helvetica", "bold"); doc.text(String(ds[0].agent_nom || ""), 120, y + 6); doc.setFont("helvetica", "normal");
   doc.setFontSize(8.5); doc.setTextColor(120, 120, 120); doc.text("Cachet de la mairie", 120, y + 26);
-  doc.setFontSize(7); ecrire(doc, mentionRgpd(), 20, 272, 170, 7, 1.25);
+  if (avecMention()) { doc.setFontSize(7); ecrire(doc, mentionRgpd(), 20, 272, 170, 7, 1.25); }
   ouvrirPdf(doc, `recepisse-${ds[0].numero}.pdf`);
   journalLocal("récépissé", "demande", ds.map(d => d.numero).join(", ")); sauverLocal();
 }
