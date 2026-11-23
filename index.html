@@ -1,0 +1,1664 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#1d4f8c">
+<title>Stationnement Pasly — Autorisations riverains</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231d4f8c'/%3E%3Ctext x='32' y='45' font-family='Arial' font-weight='700' font-size='38' text-anchor='middle' fill='%23fff'%3EP%3C/text%3E%3C/svg%3E">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+:root{
+  --c1:#1d4f8c; --c1d:#163d6d; --c2:#c8a23a;
+  --bg:#f3f5f9; --card:#fff; --txt:#1c2430; --mut:#5d6878; --bord:#dfe4ec;
+  --vert:#15803d; --rouge:#c0262d; --orange:#d97706; --gris:#6b7280;
+  --r:10px; --ombre:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.08);
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;background:var(--bg);color:var(--txt);font-size:15px;line-height:1.45}
+a{color:var(--c1)}
+h1{font-size:1.45rem;margin:0 0 4px}
+h2{font-size:1.1rem;margin:0 0 12px}
+h3{font-size:.98rem;margin:0 0 8px}
+.mut{color:var(--mut)} .petit{font-size:.85rem}
+.cache{display:none!important}
+
+/* ---------- Connexion ---------- */
+#ecran-connexion{min-height:100%;display:flex;align-items:center;justify-content:center;padding:20px;background:linear-gradient(160deg,var(--c1) 0%,var(--c1d) 100%)}
+.boite-cnx{background:#fff;border-radius:16px;box-shadow:0 20px 50px rgba(0,0,0,.25);padding:32px 28px;width:100%;max-width:400px}
+.blason{display:flex;align-items:center;gap:12px;margin-bottom:22px}
+.blason .logo{width:52px;height:52px;border-radius:12px;background:var(--c1);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:26px;border-bottom:4px solid var(--c2)}
+.blason b{display:block;font-size:1.2rem;letter-spacing:.5px}
+.info-qr{background:#eef4fb;border:1px solid #c9dcf2;color:#173f6e;border-radius:8px;padding:10px 12px;font-size:.88rem;margin-bottom:14px}
+
+/* ---------- Structure ---------- */
+#app{display:flex;min-height:100%}
+#menu{width:250px;flex:0 0 250px;background:var(--c1);color:#e7eef8;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto;z-index:40}
+#menu .tete{padding:18px 18px 14px;border-bottom:1px solid rgba(255,255,255,.12)}
+#menu .tete .nom{font-weight:800;font-size:1.25rem;letter-spacing:1px;color:#fff}
+#menu .tete .sous{font-size:.78rem;opacity:.8}
+#menu .tete .filet{height:3px;width:46px;background:var(--c2);margin-top:8px;border-radius:2px}
+#menu nav{padding:10px 8px;flex:1}
+#menu nav a{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;color:#e7eef8;text-decoration:none;font-size:.95rem;margin-bottom:2px}
+#menu nav a .num{width:22px;height:22px;border-radius:6px;background:rgba(255,255,255,.12);display:inline-flex;align-items:center;justify-content:center;font-size:.75rem;flex:0 0 22px}
+#menu nav a:hover{background:rgba(255,255,255,.08)}
+#menu nav a.actif{background:#fff;color:var(--c1);font-weight:600}
+#menu nav a.actif .num{background:var(--c1);color:#fff}
+#menu nav a .pastille{margin-left:auto;background:var(--c2);color:#1c2430;font-size:.72rem;font-weight:700;border-radius:10px;padding:1px 7px}
+#menu .pied{padding:12px 16px;border-top:1px solid rgba(255,255,255,.12);font-size:.83rem}
+#menu .pied button{background:transparent;border:1px solid rgba(255,255,255,.35);color:#fff;padding:6px 10px;border-radius:6px;cursor:pointer;font-size:.8rem;margin:6px 6px 0 0}
+#principal{flex:1;min-width:0;display:flex;flex-direction:column}
+#barre{display:none;background:var(--c1);color:#fff;padding:10px 14px;align-items:center;gap:12px;position:sticky;top:0;z-index:30}
+#barre button{background:transparent;border:0;color:#fff;font-size:1.5rem;cursor:pointer;line-height:1}
+#contenu{padding:24px 28px 60px;max-width:1300px;width:100%}
+.entete-page{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+#voile{display:none}
+
+@media (max-width: 900px){
+  #menu{position:fixed;left:0;top:0;transform:translateX(-100%);transition:transform .2s}
+  #menu.ouvert{transform:none}
+  #voile.ouvert{display:block;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:35}
+  #barre{display:flex}
+  #contenu{padding:16px 14px 60px}
+}
+body.mode-controle #menu{display:none}
+body.mode-controle #barre{display:flex}
+body.mode-controle #barre .burger{display:none}
+
+/* ---------- Composants ---------- */
+.carte{background:var(--card);border:1px solid var(--bord);border-radius:var(--r);box-shadow:var(--ombre);padding:18px;margin-bottom:18px}
+.grille-tuiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;margin-bottom:18px}
+.tuile{background:#fff;border:1px solid var(--bord);border-radius:var(--r);padding:16px;box-shadow:var(--ombre);cursor:pointer;border-left:5px solid var(--c1);transition:transform .1s}
+.tuile:hover{transform:translateY(-2px)}
+.tuile .val{font-size:2rem;font-weight:800;line-height:1.1}
+.tuile .lib{color:var(--mut);font-size:.88rem}
+.tuile.v{border-left-color:var(--vert)} .tuile.r{border-left-color:var(--rouge)} .tuile.o{border-left-color:var(--orange)} .tuile.g{border-left-color:var(--c2)}
+.deux-col{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.trois-col{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+@media (max-width:1000px){.deux-col,.trois-col{grid-template-columns:1fr}}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--bord);background:#fff;color:var(--txt);padding:8px 14px;border-radius:8px;font-size:.92rem;cursor:pointer;font-weight:500;text-decoration:none;white-space:nowrap}
+.btn:hover{background:#f6f8fb}
+.btn.p{background:var(--c1);border-color:var(--c1);color:#fff}
+.btn.p:hover{background:var(--c1d)}
+.btn.vert{background:var(--vert);border-color:var(--vert);color:#fff}
+.btn.danger{background:#fff;border-color:#f1b9bc;color:var(--rouge)}
+.btn.danger:hover{background:#fdf0f0}
+.btn.orange{background:#fff;border-color:#f6cf98;color:#9a5a05}
+.btn.mini{padding:4px 9px;font-size:.82rem}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+
+label{display:block;font-size:.85rem;font-weight:600;margin-bottom:4px;color:#334155}
+input[type=text],input[type=email],input[type=tel],input[type=password],input[type=date],input[type=number],input[type=search],select,textarea{
+  width:100%;padding:9px 11px;border:1px solid #c9d1dd;border-radius:8px;font-size:.95rem;font-family:inherit;background:#fff;color:var(--txt)}
+input:focus,select:focus,textarea:focus{outline:2px solid color-mix(in srgb,var(--c1) 35%,transparent);border-color:var(--c1)}
+textarea{min-height:70px;resize:vertical}
+.champ{margin-bottom:12px}
+.ligne{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.case{display:flex;align-items:center;gap:8px;font-weight:500;cursor:pointer}
+.case input{width:18px;height:18px}
+.oblig::after{content:" *";color:var(--rouge)}
+.aide{font-size:.8rem;color:var(--mut);margin-top:3px}
+.radios{display:flex;gap:8px;flex-wrap:wrap}
+.radios label{border:1px solid #c9d1dd;border-radius:8px;padding:8px 12px;display:flex;gap:6px;align-items:center;font-weight:500;cursor:pointer;margin:0}
+.radios input{margin:0}
+
+.tableau-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.9rem}
+th{text-align:left;background:#f6f8fb;color:#475569;font-weight:600;padding:9px 10px;border-bottom:1px solid var(--bord);white-space:nowrap;font-size:.82rem;text-transform:uppercase;letter-spacing:.3px}
+td{padding:9px 10px;border-bottom:1px solid #edf0f5;vertical-align:middle}
+tr.clic{cursor:pointer} tr.clic:hover td{background:#f8fafd}
+.vide{padding:28px;text-align:center;color:var(--mut)}
+.plaque{font-family:"Consolas","DejaVu Sans Mono",monospace;font-weight:700;background:#fff;border:1.5px solid #1c2430;border-radius:4px;padding:1px 6px;white-space:nowrap;letter-spacing:.5px;font-size:.88rem;border-left:7px solid #003399;border-right:7px solid #003399}
+.badge{display:inline-block;padding:2px 9px;border-radius:12px;font-size:.78rem;font-weight:700;white-space:nowrap}
+.b-active,.b-valide,.b-validee{background:#dcfce7;color:#166534}
+.b-expiree,.b-annulee,.b-refusee{background:#fee2e2;color:#991b1b}
+.b-suspendue,.b-en_attente{background:#ffedd5;color:#9a3412}
+.b-inconnu{background:#e5e7eb;color:#374151}
+.b-demo{background:#fef3c7;color:#92400e}
+.b-role{background:#e0e9f6;color:var(--c1)}
+
+.filtres{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:end}
+.filtres > *{flex:0 1 auto}
+.filtres input[type=search]{min-width:260px}
+.bandeau{border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:.9rem}
+.bandeau.alerte{background:#fff7ed;border:1px solid #fed7aa;color:#7c2d12}
+.bandeau.demo{background:#fefce8;border:1px solid #fde68a;color:#713f12}
+.bandeau.info{background:#eef4fb;border:1px solid #c9dcf2;color:#173f6e}
+.liste-alerte{list-style:none;margin:0;padding:0}
+.liste-alerte li{padding:7px 0;border-bottom:1px dashed #e5e9f0;display:flex;justify-content:space-between;gap:8px;align-items:center;cursor:pointer}
+.liste-alerte li:last-child{border-bottom:0}
+.colonne-alerte h3{display:flex;align-items:center;gap:8px}
+.puce{width:10px;height:10px;border-radius:50%;display:inline-block}
+
+.vehicule-ligne{display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr auto;gap:10px;align-items:end;margin-bottom:8px;background:#f8fafc;border:1px solid #e7ebf1;border-radius:8px;padding:10px}
+@media (max-width:700px){.vehicule-ligne{grid-template-columns:1fr 1fr}}
+.vehicule-ligne input.immat{text-transform:uppercase;font-family:monospace;font-weight:700;letter-spacing:1px}
+
+/* ---------- Fenêtres ---------- */
+#modale-fond{position:fixed;inset:0;background:rgba(15,23,42,.45);display:none;align-items:flex-start;justify-content:center;z-index:100;padding:40px 14px;overflow-y:auto}
+#modale-fond.ouvert{display:flex}
+.modale{background:#fff;border-radius:14px;width:100%;max-width:620px;box-shadow:0 25px 60px rgba(0,0,0,.3)}
+.modale.large{max-width:960px}
+.modale .mt{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--bord)}
+.modale .mt h2{margin:0}
+.modale .mt button{border:0;background:transparent;font-size:1.5rem;cursor:pointer;color:var(--mut)}
+.modale .mc{padding:18px 20px}
+.modale .mp{padding:14px 20px;border-top:1px solid var(--bord);display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.fiche-grille{display:grid;grid-template-columns:150px 1fr;gap:6px 14px;font-size:.92rem}
+.fiche-grille dt{color:var(--mut)} .fiche-grille dd{margin:0;font-weight:500}
+.qr-apercu{width:150px;height:150px;border:1px solid var(--bord);border-radius:8px;padding:6px;background:#fff}
+
+#toasts{position:fixed;right:16px;bottom:16px;z-index:200;display:flex;flex-direction:column;gap:8px;max-width:420px}
+.toast{background:#1f2937;color:#fff;padding:11px 15px;border-radius:9px;box-shadow:0 10px 25px rgba(0,0,0,.25);font-size:.9rem;animation:arr .2s}
+.toast.err{background:var(--rouge)} .toast.ok{background:var(--vert)}
+@keyframes arr{from{opacity:0;transform:translateY(8px)}}
+#chargement{position:fixed;inset:0;background:rgba(255,255,255,.6);display:none;align-items:center;justify-content:center;z-index:150}
+#chargement.ouvert{display:flex}
+.rond{width:42px;height:42px;border:4px solid #d6deea;border-top-color:var(--c1);border-radius:50%;animation:tour .8s linear infinite}
+@keyframes tour{to{transform:rotate(360deg)}}
+
+/* ---------- Contrôle ---------- */
+.ctrl{max-width:560px;margin:0 auto}
+.ctrl .gros{width:100%;padding:18px;font-size:1.1rem;border-radius:12px}
+.ctrl .saisie-plaque{display:flex;gap:8px}
+.ctrl .saisie-plaque input{font-size:1.35rem;text-transform:uppercase;font-family:monospace;font-weight:700;letter-spacing:2px;text-align:center;padding:14px}
+#lecteur{width:100%;border-radius:12px;overflow:hidden;background:#000;margin:12px 0}
+.resultat{border-radius:16px;padding:22px 20px;color:#fff;margin:16px 0;text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.15)}
+.resultat .etat{font-size:1.9rem;font-weight:800;letter-spacing:1px;line-height:1.15}
+.resultat .sous{opacity:.92;margin-top:4px}
+.resultat.valide{background:var(--vert)} .resultat.expiree,.resultat.annulee{background:var(--rouge)}
+.resultat.suspendue{background:var(--orange)} .resultat.inconnu{background:var(--gris)}
+.resultat .det{background:rgba(255,255,255,.14);border-radius:10px;padding:12px;margin-top:14px;text-align:left;font-size:1rem}
+.resultat .det div{display:flex;justify-content:space-between;gap:10px;padding:3px 0}
+.resultat .det .plaque{color:#1c2430;font-size:1.15rem}
+.hist-ctrl li{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid #eef1f5;font-size:.88rem}
+
+/* ---------- Aperçu macaron ---------- */
+.macaron{width:238px;border:2px solid var(--c1);border-radius:10px;overflow:hidden;background:#fff;font-family:Helvetica,Arial,sans-serif;text-align:center;box-shadow:var(--ombre)}
+.macaron .bande{background:var(--c1);color:#fff;padding:8px 6px 6px;border-bottom:4px solid var(--c2)}
+.macaron .bande small{font-size:9px;letter-spacing:1px;display:block}
+.macaron .bande b{font-size:26px;letter-spacing:3px}
+.macaron .titre{color:var(--c1);font-weight:800;font-size:13px;margin:8px 0 4px}
+.macaron svg{width:128px;height:128px}
+.macaron .num{font-weight:800;font-size:15px}
+.macaron .valid{background:#f7f1df;margin:6px 10px;border-radius:6px;padding:4px}
+.macaron .valid small{font-size:8px;display:block;letter-spacing:.5px}
+.macaron .valid b{color:var(--c1);font-size:16px}
+.macaron .txt{font-size:7.5px;color:#555;padding:2px 10px 8px}
+
+@media print{
+  #menu,#barre,.no-print,#toasts{display:none!important}
+  #contenu{padding:0}
+  .carte{box-shadow:none;border:0}
+}
+</style>
+</head>
+<body>
+
+<!-- ============ CONNEXION ============ -->
+<div id="ecran-connexion" class="cache">
+  <form class="boite-cnx" id="form-cnx" autocomplete="on">
+    <div class="blason"><div class="logo">P</div><div><b>Commune de Pasly</b><span class="mut petit">Stationnement — autorisations riverains</span></div></div>
+    <div id="info-qr" class="info-qr cache">Un macaron a été scanné. La vérification est réservée aux agents habilités : connectez-vous pour afficher le résultat.</div>
+    <div class="champ"><label for="cnx-email">Identifiant (adresse électronique)</label><input type="email" id="cnx-email" required autocomplete="username"></div>
+    <div class="champ"><label for="cnx-mdp">Mot de passe</label><input type="password" id="cnx-mdp" required autocomplete="current-password"></div>
+    <div id="cnx-erreur" class="bandeau alerte cache"></div>
+    <button class="btn p" style="width:100%;padding:12px" type="submit" id="cnx-btn">Se connecter</button>
+    <p class="mut petit" style="margin:16px 0 0">Accès réservé aux agents de la mairie de Pasly. Les connexions et opérations sont journalisées. Les données des riverains restent sur l'ordinateur de la mairie.</p>
+  </form>
+</div>
+
+<!-- ============ CHANGEMENT DE MOT DE PASSE OBLIGATOIRE ============ -->
+<div id="ecran-mdp" class="cache" style="min-height:100%;display:flex;align-items:center;justify-content:center;padding:20px;background:var(--c1)">
+  <form class="boite-cnx" id="form-mdp-oblig">
+    <h2>Choisissez votre mot de passe</h2>
+    <p class="mut petit">Pour votre première connexion (ou après une réinitialisation), vous devez définir un mot de passe personnel : 10 caractères minimum, avec des lettres et des chiffres.</p>
+    <div class="champ"><label>Nouveau mot de passe</label><input type="password" id="mdp1" required autocomplete="new-password"></div>
+    <div class="champ"><label>Confirmation</label><input type="password" id="mdp2" required autocomplete="new-password"></div>
+    <button class="btn p" style="width:100%;padding:12px" type="submit">Enregistrer</button>
+  </form>
+</div>
+
+<!-- ============ APPLICATION ============ -->
+<div id="app" class="cache">
+  <aside id="menu">
+    <div class="tete"><div class="nom">PASLY</div><div class="sous">Stationnement riverains</div><div class="filet"></div></div>
+    <nav id="nav"></nav>
+    <div class="pied">
+      <div id="moi-nom" style="font-weight:600;color:#fff"></div>
+      <div id="moi-role" style="opacity:.8"></div>
+      <button type="button" id="btn-mdp">Mot de passe</button><button type="button" id="btn-deco">Déconnexion</button>
+    </div>
+  </aside>
+  <div id="voile"></div>
+  <div id="principal">
+    <div id="barre">
+      <button class="burger" id="btn-burger" aria-label="Menu">☰</button>
+      <b style="flex:1">PASLY · <span id="barre-titre">Stationnement</span></b>
+      <button id="btn-deco2" style="font-size:.85rem;border:1px solid rgba(255,255,255,.4);border-radius:6px;padding:5px 9px" class="cache">Déconnexion</button>
+    </div>
+    <main id="contenu"></main>
+  </div>
+</div>
+
+<div id="modale-fond"><div class="modale" id="modale"></div></div>
+<div id="toasts"></div>
+<div id="chargement"><div class="rond"></div></div>
+
+<script>
+"use strict";
+/* =====================================================================
+   STATIONNEMENT PASLY — v2
+   - Données des riverains (identité, adresse, téléphone, véhicules, demandes) :
+     UNIQUEMENT sur le PC de la mairie (base du navigateur + fichier d'enregistrement).
+   - Serveur Supabase : registre anonyme (n°, code QR aléatoire, statut, dates, zone),
+     comptes agents, paramètres, journal du registre, contrôles.
+   ===================================================================== */
+const SUPABASE_URL = "https://idswkljjaoajhevgsnfh.supabase.co";
+const SUPABASE_CLE = "sb_publishable_kaRpfQPyPZUKjLkWOEyUTQ_vRKLLU7c";
+const VERSION = "2.0.0";
+const DELAI_INACTIVITE_MIN = 45;
+const APP_LOCAL = "Stationnement Pasly — données locales";
+const APP_REGISTRE = "Stationnement Pasly — registre anonyme";
+
+if (!window.supabase || !window.qrcode || !window.jspdf) {
+  document.body.innerHTML = '<div style="padding:40px;font-family:sans-serif"><h2>Connexion internet requise</h2><p>Les composants de l\'application n\'ont pas pu être chargés. Vérifiez la connexion et rechargez la page.</p></div>';
+  throw new Error("Bibliothèques non chargées");
+}
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_CLE, {
+  auth: { storageKey: "sta-pasly-auth", persistSession: true, autoRefreshToken: true }
+});
+
+const S = { moi: null, params: {}, serveur: [], autos: [], agentsListe: [], derniersCtrl: [] };
+
+/* ---------------- Utilitaires ---------------- */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const aujourdhui = () => iso(new Date());
+const maintenant = () => new Date().toISOString();
+const uuid = () => crypto.randomUUID ? crypto.randomUUID() : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => { const r = crypto.getRandomValues(new Uint8Array(1))[0] % 16; return (c === "x" ? r : (r & 3 | 8)).toString(16); });
+function versDate(d) { if (!d) return null; return (typeof d === "string" && d.length === 10) ? new Date(d + "T00:00:00") : new Date(d); }
+const joursEntre = (a, b) => Math.round((versDate(b) - versDate(a)) / 864e5);
+const fd = d => d ? versDate(d).toLocaleDateString("fr-FR") : "—";
+const fdt = d => d ? new Date(d).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" }) : "—";
+const normPlaque = p => String(p || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+function fPlaque(p) { p = normPlaque(p); return /^[A-Z]{2}\d{3}[A-Z]{2}$/.test(p) ? `${p.slice(0, 2)}-${p.slice(2, 5)}-${p.slice(5)}` : p; }
+const plaqueHtml = p => p ? `<span class="plaque">${esc(fPlaque(p))}</span>` : "—";
+const nomComplet = r => r ? `${(r.nom || "").toUpperCase()} ${r.prenom || ""}`.trim() : "—";
+const normAdr = a => String(a || "").toLowerCase().replace(/\s+/g, " ").trim();
+const LIB = { active: "Active", expiree: "Expirée", suspendue: "Suspendue", annulee: "Annulée", valide: "Valide", inconnu: "Inconnu",
+  en_attente: "En attente", validee: "Validée", refusee: "Refusée", admin: "Administrateur", agent: "Agent secrétariat", controleur: "Agent de contrôle" };
+const badge = s => `<span class="badge b-${esc(s)}">${esc(LIB[s] || s)}</span>`;
+const demoB = x => x && x.demo ? ' <span class="badge b-demo">DÉMO</span>' : "";
+
+function toast(msg, type = "") {
+  const t = document.createElement("div"); t.className = "toast " + type; t.textContent = msg;
+  $("#toasts").appendChild(t); setTimeout(() => t.remove(), type === "err" ? 7000 : 3800);
+}
+const erreur = e => { console.error(e); toast(messageErreur(e), "err"); };
+function messageErreur(e) {
+  const m = e?.message || String(e);
+  if (/Failed to fetch|NetworkError/i.test(m)) return "Connexion au serveur impossible. Vérifiez la connexion internet.";
+  if (/JWT|session/i.test(m)) return "Session expirée : reconnectez-vous.";
+  return m;
+}
+function chargement(on) { $("#chargement").classList.toggle("ouvert", !!on); }
+async function rpc(nom, args = {}) { const { data, error } = await sb.rpc(nom, args); if (error) throw error; return data; }
+async function req(q) { const { data, error } = await q; if (error) throw error; return data; }
+function telecharger(nom, contenu, type = "application/json") {
+  const b = contenu instanceof Blob ? contenu : new Blob([contenu], { type });
+  const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = nom; document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
+function csv(nom, entetes, lignes) {
+  const c = v => { v = v == null ? "" : String(v); return /[";\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v; };
+  telecharger(nom, "﻿" + [entetes, ...lignes].map(l => l.map(c).join(";")).join("\r\n"), "text/csv;charset=utf-8");
+}
+function imprimerListe(titre, entetes, lignes, note = "") {
+  const w = window.open("", "_blank");
+  if (!w) { toast("Autorisez les fenêtres surgissantes pour imprimer.", "err"); return; }
+  const c1 = S.params.couleur_principale || "#1d4f8c";
+  w.document.write(`<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><title>${esc(titre)}</title><style>
+  body{font-family:Arial,sans-serif;font-size:11px;color:#111;margin:18mm 14mm}
+  .en{display:flex;justify-content:space-between;border-bottom:3px solid ${c1};padding-bottom:8px;margin-bottom:12px}
+  .en b{font-size:18px;color:${c1};letter-spacing:2px} h1{font-size:15px;margin:0 0 4px}
+  table{width:100%;border-collapse:collapse} th{background:#eef2f7;text-align:left;padding:6px;border:1px solid #ccd3dd;font-size:10px}
+  td{padding:6px;border:1px solid #d9dee6;vertical-align:top} tr:nth-child(even) td{background:#fafbfd}
+  .pied{margin-top:14px;color:#555;font-size:10px}
+  @page{size:A4 ${entetes.length > 6 ? "landscape" : "portrait"};margin:12mm}
+  </style></head><body><div class="en"><div><b>COMMUNE DE PASLY</b><br>Stationnement — autorisations riverains</div><div style="text-align:right">Édité le ${new Date().toLocaleString("fr-FR")}<br>par ${esc(S.moi.prenom + " " + S.moi.nom)}</div></div>
+  <h1>${esc(titre)}</h1><p>${esc(note)}</p>
+  <table><thead><tr>${entetes.map(h => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>
+  ${lignes.length ? lignes.map(l => `<tr>${l.map(v => `<td>${esc(v)}</td>`).join("")}</tr>`).join("") : `<tr><td colspan="${entetes.length}">Aucune ligne</td></tr>`}
+  </tbody></table><div class="pied">${lignes.length} ligne(s) — Document interne, contient des données personnelles : ne pas diffuser, détruire après usage.</div>
+  <script>window.onload=()=>{window.print()}<\/script></body></html>`);
+  w.document.close();
+}
+
+/* ---------------- Fenêtres modales ---------------- */
+let modaleFermeture = null;
+function ouvrirModale(titre, corps, pied = "", opts = {}) {
+  const m = $("#modale"); m.className = "modale" + (opts.large ? " large" : "");
+  m.innerHTML = `<div class="mt"><h2>${esc(titre)}</h2><button type="button" data-fermer aria-label="Fermer">×</button></div><div class="mc">${corps}</div>${pied ? `<div class="mp">${pied}</div>` : ""}`;
+  $("#modale-fond").classList.add("ouvert");
+  $$("[data-fermer]", m).forEach(b => b.onclick = () => fermerModale());
+  modaleFermeture = opts.onClose || null;
+  return m;
+}
+function fermerModale(val) {
+  $("#modale-fond").classList.remove("ouvert"); $("#modale").innerHTML = "";
+  const f = modaleFermeture; modaleFermeture = null; if (f) f(val);
+}
+$("#modale-fond").addEventListener("mousedown", e => { if (e.target.id === "modale-fond") fermerModale(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && $("#modale-fond").classList.contains("ouvert")) fermerModale(); });
+function confirmer(titre, message, opts = {}) {
+  return new Promise(res => {
+    const saisie = opts.saisie ? `<div class="champ" style="margin-top:12px"><label>Pour confirmer, tapez <b>${esc(opts.saisie)}</b></label><input type="text" id="cf-saisie" autocomplete="off"></div>` : "";
+    const m = ouvrirModale(titre, `<p style="margin-top:0">${message}</p>${saisie}`,
+      `<button class="btn" data-fermer>Annuler</button><button class="btn ${opts.danger ? "danger" : "p"}" id="cf-ok">${esc(opts.ok || "Confirmer")}</button>`,
+      { onClose: v => res(v === true) });
+    $("#cf-ok", m).onclick = () => {
+      if (opts.saisie && $("#cf-saisie", m).value.trim().toUpperCase() !== opts.saisie.toUpperCase()) { toast("Saisie de confirmation incorrecte.", "err"); return; }
+      fermerModale(true);
+    };
+  });
+}
+function demander(titre, libelle, opts = {}) {
+  return new Promise(res => {
+    const m = ouvrirModale(titre, `${opts.message ? `<p style="margin-top:0">${opts.message}</p>` : ""}<div class="champ"><label class="${opts.obligatoire ? "oblig" : ""}">${esc(libelle)}</label>
+      ${opts.multi ? `<textarea id="dm-val">${esc(opts.valeur || "")}</textarea>` : `<input type="${opts.type || "text"}" id="dm-val" value="${esc(opts.valeur || "")}" autocomplete="off">`}</div>`,
+      `<button class="btn" data-fermer>Annuler</button><button class="btn ${opts.danger ? "danger" : "p"}" id="dm-ok">${esc(opts.ok || "Valider")}</button>`,
+      { onClose: v => res(typeof v === "string" ? v : null) });
+    const i = $("#dm-val", m); setTimeout(() => i.focus(), 50);
+    const ok = () => { const v = i.value.trim(); if (opts.obligatoire && !v) { toast("Ce champ est obligatoire.", "err"); return; } fermerModale(v); };
+    $("#dm-ok", m).onclick = ok;
+    if (!opts.multi) i.addEventListener("keydown", e => { if (e.key === "Enter") ok(); });
+  });
+}
+
+/* =====================================================================
+   STOCKAGE LOCAL — les données des riverains ne quittent jamais ce poste
+   ===================================================================== */
+const IDB = {
+  db: null,
+  async ouvrir() {
+    if (this.db) return this.db;
+    this.db = await new Promise((res, rej) => { const r = indexedDB.open("stationnement-pasly", 1); r.onupgradeneeded = () => r.result.createObjectStore("kv"); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+    return this.db;
+  },
+  async get(k) { const db = await this.ouvrir(); return new Promise((res, rej) => { const r = db.transaction("kv").objectStore("kv").get(k); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); },
+  async set(k, v) { const db = await this.ouvrir(); return new Promise((res, rej) => { const tx = db.transaction("kv", "readwrite"); tx.objectStore("kv").put(v, k); tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error); }); },
+  async del(k) { const db = await this.ouvrir(); return new Promise((res, rej) => { const tx = db.transaction("kv", "readwrite"); tx.objectStore("kv").delete(k); tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error); }); }
+};
+const baseVide = () => ({ application: APP_LOCAL, format: 2, riverains: [], vehicules: [], demandes: [], liens: {}, journal: [], compteurs: {}, meta: { cree_le: maintenant() } });
+let L = baseVide();
+const FICHIER = { handle: null, ok: false, possible: "showSaveFilePicker" in window };
+function normaliserBase(b) {
+  const v = baseVide();
+  for (const k of Object.keys(v)) if (b[k] == null) b[k] = v[k];
+  return b;
+}
+async function chargerLocal() {
+  L = normaliserBase((await IDB.get("base")) || baseVide());
+  FICHIER.handle = (await IDB.get("fichier")) || null; FICHIER.ok = false;
+  if (FICHIER.handle) { try { FICHIER.ok = (await FICHIER.handle.queryPermission({ mode: "readwrite" })) === "granted"; } catch { FICHIER.ok = false; } }
+  try { if (navigator.storage?.persist) await navigator.storage.persist(); } catch { }
+  // Durée de conservation du journal local
+  const mois = +S.params.conservation_journal_mois || 36, lim = new Date(); lim.setMonth(lim.getMonth() - mois);
+  L.journal = L.journal.filter(j => new Date(j.horodatage) >= lim);
+}
+async function ecrireFichier() {
+  if (!FICHIER.handle || !FICHIER.ok) return;
+  try {
+    const w = await FICHIER.handle.createWritable(); await w.write(JSON.stringify(L)); await w.close();
+    L.meta.fichier_ecrit_le = maintenant(); await IDB.set("base", L);
+  } catch (e) { FICHIER.ok = false; toast("L'enregistrement dans le fichier a échoué : réactivez-le (bandeau du tableau de bord).", "err"); }
+}
+async function sauverLocal() {
+  L.meta.modifie_le = maintenant();
+  await IDB.set("base", L);
+  await ecrireFichier();
+  fusionner(); majPastilles();
+}
+function journalLocal(action, objet, libelle, details) {
+  L.journal.unshift({ horodatage: maintenant(), agent_nom: `${S.moi.prenom} ${S.moi.nom}`.trim(), action, objet, libelle: libelle || "", details: details || null });
+}
+function prochainNumeroDemande() {
+  const k = "DEM-" + new Date().getFullYear(); L.compteurs[k] = (L.compteurs[k] || 0) + 1;
+  return `${k}-${String(L.compteurs[k]).padStart(4, "0")}`;
+}
+async function choisirFichier() {
+  if (!FICHIER.possible) return toast("Ce navigateur ne permet pas l'enregistrement automatique dans un fichier : utilisez Chrome ou Edge, ou exportez des copies régulières.", "err");
+  try {
+    const h = await window.showSaveFilePicker({ suggestedName: "stationnement-pasly-donnees.json", types: [{ description: "Données Stationnement Pasly", accept: { "application/json": [".json"] } }] });
+    FICHIER.handle = h; FICHIER.ok = true; await IDB.set("fichier", h); await ecrireFichier();
+    toast("Enregistrement automatique activé dans « " + h.name + " ».", "ok"); afficherPage();
+  } catch (e) { if (e.name !== "AbortError") erreur(e); }
+}
+async function reactiverFichier() {
+  if (!FICHIER.handle) return choisirFichier();
+  try { FICHIER.ok = (await FICHIER.handle.requestPermission({ mode: "readwrite" })) === "granted"; if (FICHIER.ok) { await ecrireFichier(); toast("Enregistrement automatique réactivé.", "ok"); } afficherPage(); } catch (e) { erreur(e); }
+}
+async function ouvrirFichierDonnees() {
+  if (!estAdmin()) return toast("Réservé à l'administrateur.", "err");
+  if (!("showOpenFilePicker" in window)) return importerCopie();
+  try {
+    const [h] = await window.showOpenFilePicker({ types: [{ description: "Données Stationnement Pasly", accept: { "application/json": [".json"] } }] });
+    const obj = await lireCopie(await (await h.getFile()).text());
+    if (!obj || !await confirmerRemplacement(obj)) return;
+    if ((await h.requestPermission({ mode: "readwrite" })) === "granted") { FICHIER.handle = h; FICHIER.ok = true; await IDB.set("fichier", h); }
+    await remplacerBase(obj, "ouverture du fichier " + h.name);
+  } catch (e) { if (e.name !== "AbortError") erreur(e); }
+}
+async function delierFichier() { FICHIER.handle = null; FICHIER.ok = false; await IDB.del("fichier"); afficherPage(); }
+
+/* ----- Copies chiffrées (AES-256-GCM, clé dérivée du mot de passe) ----- */
+const b64 = u8 => { let s = ""; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s); };
+const deb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+async function deriverCle(mdp, sel) {
+  const k = await crypto.subtle.importKey("raw", new TextEncoder().encode(mdp), "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey({ name: "PBKDF2", salt: sel, iterations: 250000, hash: "SHA-256" }, k, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+}
+async function chiffrer(obj, mdp) {
+  const sel = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, await deriverCle(mdp, sel), new TextEncoder().encode(JSON.stringify(obj))));
+  return { application: APP_LOCAL, chiffre: true, methode: "PBKDF2-SHA256-250000 / AES-256-GCM", exporte_le: maintenant(), sel: b64(sel), iv: b64(iv), donnees: b64(ct) };
+}
+async function dechiffrer(o, mdp) {
+  const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: deb64(o.iv) }, await deriverCle(mdp, deb64(o.sel)), deb64(o.donnees));
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+async function lireCopie(texte) {
+  let o; try { o = JSON.parse(texte); } catch { toast("Fichier illisible (JSON attendu).", "err"); return null; }
+  if (o.application !== APP_LOCAL) { toast("Ce fichier n'est pas un fichier de données locales Stationnement Pasly.", "err"); return null; }
+  if (o.chiffre) {
+    const mdp = await demander("Copie protégée", "Mot de passe de la copie", { type: "password", obligatoire: true, ok: "Déchiffrer" });
+    if (!mdp) return null;
+    try { o = await dechiffrer(o, mdp); } catch { toast("Mot de passe incorrect ou fichier endommagé.", "err"); return null; }
+  }
+  return normaliserBase(o);
+}
+function confirmerRemplacement(o) {
+  return confirmer("Remplacer les données de ce poste", `Fichier du <b>${fdt(o.meta?.modifie_le || o.meta?.cree_le)}</b> : ${o.riverains.length} riverain(s), ${o.vehicules.length} véhicule(s), ${o.demandes.length} demande(s).<br>Les données actuelles de ce poste (${L.riverains.length} riverain(s)) seront remplacées. Exportez d'abord une copie si nécessaire.`, { danger: true, ok: "Remplacer", saisie: "REMPLACER" });
+}
+async function remplacerBase(o, origine) {
+  L = o; journalLocal("import", "données locales", origine); await sauverLocal(); toast("Données chargées.", "ok"); await rafraichir();
+}
+function exporterCopie() {
+  const m = ouvrirModale("Exporter une copie des données", `<p style="margin-top:0">Copie complète des données des riverains de ce poste (${L.riverains.length} riverain(s)). À ranger sur un support de la mairie.</p>
+    <div class="champ"><label class="case"><input type="checkbox" id="ex-chif" checked> Protéger la copie par un mot de passe (recommandé)</label></div>
+    <div id="ex-mdp" class="ligne"><div class="champ"><label>Mot de passe (10 caractères min.)</label><input type="password" id="ex-m1" autocomplete="new-password"></div><div class="champ"><label>Confirmation</label><input type="password" id="ex-m2" autocomplete="new-password"></div></div>
+    <p class="mut petit">Sans ce mot de passe, la copie ne pourra pas être relue : conservez-le en lieu sûr (coffre de la mairie).</p>`,
+    `<button class="btn" data-fermer>Annuler</button><button class="btn p" id="ex-ok">Télécharger la copie</button>`);
+  $("#ex-chif", m).onchange = e => $("#ex-mdp", m).classList.toggle("cache", !e.target.checked);
+  $("#ex-ok", m).onclick = async () => {
+    const chif = $("#ex-chif", m).checked, a = $("#ex-m1", m).value, b = $("#ex-m2", m).value;
+    if (chif && a.length < 10) return toast("Mot de passe trop court (10 caractères minimum).", "err");
+    if (chif && a !== b) return toast("Les deux saisies diffèrent.", "err");
+    try {
+      const contenu = chif ? await chiffrer(L, a) : L;
+      telecharger(`stationnement-pasly-copie-${aujourdhui()}${chif ? "-protegee" : ""}.json`, JSON.stringify(contenu));
+      L.meta.derniere_copie = maintenant(); journalLocal("export", "données locales", chif ? "Copie protégée" : "Copie non protégée"); await sauverLocal();
+      fermerModale(); toast("Copie téléchargée.", "ok");
+    } catch (e) { erreur(e); }
+  };
+}
+function importerCopie() {
+  if (!estAdmin()) return toast("Réservé à l'administrateur.", "err");
+  const i = document.createElement("input"); i.type = "file"; i.accept = ".json,application/json";
+  i.onchange = async () => { const f = i.files[0]; if (!f) return; const o = await lireCopie(await f.text()); if (o && await confirmerRemplacement(o)) await remplacerBase(o, "import de " + f.name); };
+  i.click();
+}
+function etatStockage() {
+  const derniere = L.meta.fichier_ecrit_le || L.meta.derniere_copie;
+  const vieux = !derniere || (Date.now() - new Date(derniere)) > 7 * 864e5;
+  return { fichierActif: !!(FICHIER.handle && FICHIER.ok), fichierInactif: !!(FICHIER.handle && !FICHIER.ok), vieux, derniere };
+}
+
+/* ---------------- QR code ---------------- */
+function urlControle(jeton) {
+  let base = (S.params.url_controle || "").trim();
+  if (!base) base = location.origin + location.pathname;
+  base = base.split("#")[0].split("?")[0];
+  return `${base}?c=${encodeURIComponent(jeton)}`;
+}
+function qrMatrice(texte) { const q = qrcode(0, "M"); q.addData(texte); q.make(); return q; }
+function qrSvg(texte) {
+  const q = qrMatrice(texte), n = q.getModuleCount(), m = 2; let p = "";
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (q.isDark(r, c)) p += `M${c + m} ${r + m}h1v1h-1z`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${n + 2 * m} ${n + 2 * m}" shape-rendering="crispEdges"><rect width="100%" height="100%" fill="#fff"/><path d="${p}" fill="#000"/></svg>`;
+}
+
+/* ---------------- Données fusionnées ---------------- */
+const riv = id => L.riverains.find(r => r.id === id);
+const veh = id => L.vehicules.find(v => v.id === id);
+const lien = id => L.liens[id];
+function fusionner() {
+  const t = aujourdhui();
+  S.autos = S.serveur.map(a => {
+    const l = L.liens[a.id] || null, r = l ? riv(l.riverain_id) : null, v = l ? veh(l.vehicule_id) : null;
+    return { ...a, statut_effectif: a.statut === "active" && a.date_fin < t ? "expiree" : a.statut, jours_restants: joursEntre(t, a.date_fin),
+      orphelin: !r, riverain_id: l?.riverain_id || null, vehicule_id: l?.vehicule_id || null, immatriculation: l?.immatriculation || "",
+      motif_statut: l?.motif_statut || null, macaron_imprime_le: l?.macaron_imprime_le || null, demande_id: l?.demande_id || null,
+      civilite: r?.civilite, nom: r ? r.nom : "(fiche absente de ce poste)", prenom: r?.prenom || "", adresse: r?.adresse || "", complement: r?.complement || "",
+      telephone: r?.telephone || "", email: r?.email || "", marque: v?.marque || "", modele: v?.modele || "", couleur: v?.couleur || "" };
+  }).sort((x, y) => x.numero.localeCompare(y.numero));
+}
+function calculerFin(debutIso) {
+  const d = versDate(debutIso);
+  if (S.params.mode_validite === "annee_civile") return `${d.getFullYear()}-12-31`;
+  const mois = +S.params.duree_validite_mois || 12;
+  const cible = new Date(d.getFullYear(), d.getMonth() + mois, 1);
+  const dernierJour = new Date(cible.getFullYear(), cible.getMonth() + 1, 0).getDate();
+  cible.setDate(Math.min(d.getDate(), dernierJour)); cible.setDate(cible.getDate() - 1);
+  return iso(cible);
+}
+const paliers = () => (Array.isArray(S.params.alertes_jours) ? S.params.alertes_jours : [30, 15, 0]).map(Number).filter(n => n >= 0).sort((a, b) => b - a);
+const seuilMax = () => paliers()[0] ?? 30;
+const aRenouveler = a => a.statut_effectif === "active" && a.jours_restants <= seuilMax();
+const autoEnCours = vid => S.autos.find(a => a.vehicule_id === vid && ["active", "suspendue"].includes(a.statut));
+const estAdmin = () => S.moi?.role === "admin";
+const majServeur = a => { const i = S.serveur.findIndex(x => x.id === a.id); if (i >= 0) S.serveur[i] = { ...S.serveur[i], ...a }; else S.serveur.push(a); };
+
+async function chargerTout() {
+  const [p, a, ag] = await Promise.all([
+    sb.from("sta_parametres").select("data").eq("id", 1).single(),
+    sb.from("sta_autorisations").select("id,numero,zone,date_delivrance,date_fin,statut,jeton,nb_renouvellements,demo,created_at,updated_at").range(0, 9999),
+    sb.rpc("sta_liste_agents")
+  ]);
+  for (const x of [p, a, ag]) if (x.error) throw x.error;
+  S.params = p.data.data || {}; S.serveur = a.data; S.agentsListe = ag.data || [];
+  appliquerCouleurs(); fusionner(); majPastilles();
+}
+function appliquerCouleurs() {
+  const st = document.documentElement.style;
+  if (S.params.couleur_principale) { st.setProperty("--c1", S.params.couleur_principale); st.setProperty("--c1d", assombrir(S.params.couleur_principale)); }
+  if (S.params.couleur_secondaire) st.setProperty("--c2", S.params.couleur_secondaire);
+}
+function hexRgb(h) { h = (h || "#000").replace("#", ""); if (h.length === 3) h = h.split("").map(c => c + c).join(""); const n = parseInt(h, 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
+function assombrir(h) { const [r, g, b] = hexRgb(h).map(x => Math.round(x * .78)); return `rgb(${r},${g},${b})`; }
+
+/* ---------------- Navigation ---------------- */
+const PAGES = [
+  { id: "tableau", lib: "Tableau de bord", roles: ["admin", "agent"] },
+  { id: "demande", lib: "Nouvelle demande", roles: ["admin", "agent"] },
+  { id: "riverains", lib: "Liste des riverains", roles: ["admin", "agent"] },
+  { id: "vehicules", lib: "Gestion des véhicules", roles: ["admin", "agent"] },
+  { id: "autorisations", lib: "Autorisations", roles: ["admin", "agent"] },
+  { id: "macarons", lib: "Génération des macarons", roles: ["admin", "agent"] },
+  { id: "controle", lib: "Contrôle des autorisations", roles: ["admin", "agent", "controleur"] },
+  { id: "historique", lib: "Historique", roles: ["admin", "agent"] },
+  { id: "parametres", lib: "Paramètres", roles: ["admin", "agent"] }
+];
+function construireMenu() {
+  $("#nav").innerHTML = PAGES.filter(p => p.roles.includes(S.moi.role)).map((p, i) =>
+    `<a href="#/${p.id}" data-page="${p.id}"><span class="num">${i + 1}</span>${esc(p.lib)}<span class="pastille cache" data-pastille="${p.id}"></span></a>`).join("");
+  $("#moi-nom").textContent = `${S.moi.prenom} ${S.moi.nom}`;
+  $("#moi-role").textContent = LIB[S.moi.role];
+}
+function majPastilles() {
+  const set = (id, n) => { const e = $(`[data-pastille="${id}"]`); if (e) { e.textContent = n; e.classList.toggle("cache", !n); } };
+  set("demande", L.demandes.filter(d => d.statut === "en_attente").length);
+  set("autorisations", S.autos.filter(aRenouveler).length);
+  set("macarons", S.autos.filter(a => a.statut_effectif === "active" && !a.orphelin && !a.macaron_imprime_le).length);
+}
+function routeCourante() {
+  const h = location.hash.replace(/^#\/?/, ""); const [id, q] = h.split("?");
+  return { id: id || (S.moi.role === "controleur" ? "controle" : "tableau"), q: new URLSearchParams(q || "") };
+}
+let pageCourante = null;
+async function afficherPage() {
+  if (!S.moi) return;
+  arreterScanner();
+  const { id, q } = routeCourante();
+  const page = PAGES.find(p => p.id === id && p.roles.includes(S.moi.role)) || PAGES.find(p => p.roles.includes(S.moi.role));
+  pageCourante = page.id;
+  $$("#nav a").forEach(a => a.classList.toggle("actif", a.dataset.page === page.id));
+  $("#barre-titre").textContent = page.lib;
+  $("#menu").classList.remove("ouvert"); $("#voile").classList.remove("ouvert");
+  const c = $("#contenu"); c.innerHTML = "";
+  try { await RENDUS[page.id](c, q); } catch (e) { erreur(e); }
+  window.scrollTo(0, 0);
+}
+window.addEventListener("hashchange", afficherPage);
+const aller = h => { if (location.hash === h) afficherPage(); else location.hash = h; };
+async function rafraichir() { await chargerTout(); await afficherPage(); }
+
+/* Bandeau d'état du stockage local */
+function bandeauStockage() {
+  const e = etatStockage();
+  let h = "";
+  if (e.fichierInactif) h += `<div class="bandeau alerte">💾 L'enregistrement automatique dans le fichier <b>${esc(FICHIER.handle.name)}</b> est en pause (sécurité du navigateur). <button class="btn mini p" data-react-fichier>Réactiver</button></div>`;
+  else if (!e.fichierActif && e.vieux) h += `<div class="bandeau alerte">💾 Les données des riverains sont enregistrées <b>uniquement sur ce poste</b>. ${e.derniere ? `Dernière copie : ${fdt(e.derniere)}.` : "Aucune copie n'a encore été faite."} ${FICHIER.possible ? `<button class="btn mini p" data-choisir-fichier>Activer l'enregistrement automatique dans un fichier</button>` : ""} <button class="btn mini" data-exporter>Exporter une copie</button></div>`;
+  const orph = S.autos.filter(a => a.orphelin && ["active", "suspendue"].includes(a.statut)).length;
+  if (orph) h += `<div class="bandeau info">ℹ️ ${orph} autorisation(s) en cours au registre n'ont pas de fiche sur ce poste. ${L.riverains.length ? "" : "Ce poste ne contient aucune donnée : "} ${estAdmin() ? `ouvrez le fichier de données de la mairie ou importez une copie (<a href="#/parametres">Paramètres</a>).` : "Contactez l'administrateur."}</div>`;
+  return h;
+}
+function brancherBandeau(c) {
+  $$("[data-react-fichier]", c).forEach(b => b.onclick = reactiverFichier);
+  $$("[data-choisir-fichier]", c).forEach(b => b.onclick = choisirFichier);
+  $$("[data-exporter]", c).forEach(b => b.onclick = exporterCopie);
+}
+
+/* =====================================================================
+   1. TABLEAU DE BORD
+   ===================================================================== */
+function rendreTableau(c) {
+  const actives = S.autos.filter(a => a.statut_effectif === "active");
+  const nbVeh = new Set(actives.map(a => a.vehicule_id || a.id)).size;
+  const expirees = S.autos.filter(a => a.statut_effectif === "expiree");
+  const attente = L.demandes.filter(d => d.statut === "en_attente");
+  const renouv = S.autos.filter(aRenouveler).sort((a, b) => a.jours_restants - b.jours_restants);
+  const p = paliers();
+  const groupes = p.map((seuil, i) => {
+    const inf = p[i + 1];
+    const items = renouv.filter(a => seuil === 0 ? a.jours_restants === 0 : (a.jours_restants <= seuil && a.jours_restants > (inf ?? -1) && a.jours_restants > 0));
+    const titre = seuil === 0 ? "Expire aujourd'hui" : `Expire dans ${(inf ?? 0) + 1} à ${seuil} jours`;
+    return { titre, items, couleur: seuil === 0 ? "var(--rouge)" : (i === 0 ? "var(--c2)" : "var(--orange)") };
+  });
+  const recentesExp = expirees.filter(a => a.jours_restants >= -30).sort((a, b) => b.jours_restants - a.jours_restants);
+  const aDemo = L.riverains.some(r => r.demo) || S.serveur.some(a => a.demo);
+  c.innerHTML = `
+  <div class="entete-page"><div><h1>Tableau de bord</h1><div class="mut">${new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</div></div>
+    <div class="actions"><a class="btn p" href="#/demande">+ Nouvelle demande</a><a class="btn" href="#/controle">Contrôler</a></div></div>
+  ${bandeauStockage()}
+  ${aDemo ? `<div class="bandeau demo">⚠️ Des <b>données de démonstration</b> sont présentes (marquées DÉMO). ${estAdmin() ? `Supprimez-les avant la mise en production : <a href="#/parametres">Paramètres → Données de démonstration</a>.` : "L'administrateur devra les supprimer avant la mise en production."}</div>` : ""}
+  ${renouv.length ? `<div class="bandeau alerte">🔔 <b>${renouv.length} autorisation(s)</b> arrivent à échéance dans les ${seuilMax()} prochains jours. <a href="#/autorisations?f=renouveler">Voir la liste</a></div>` : ""}
+  <div class="grille-tuiles">
+    <div class="tuile" data-go="#/riverains"><div class="val">${L.riverains.length}</div><div class="lib">Riverains enregistrés</div></div>
+    <div class="tuile v" data-go="#/vehicules"><div class="val">${nbVeh}</div><div class="lib">Véhicules autorisés</div></div>
+    <div class="tuile v" data-go="#/autorisations?f=active"><div class="val">${actives.length}</div><div class="lib">Autorisations actives</div></div>
+    <div class="tuile r" data-go="#/autorisations?f=expiree"><div class="val">${expirees.length}</div><div class="lib">Autorisations expirées</div></div>
+    <div class="tuile o" data-go="#/demande?vue=registre"><div class="val">${attente.length}</div><div class="lib">Demandes en attente</div></div>
+    <div class="tuile g" data-go="#/autorisations?f=renouveler"><div class="val">${renouv.length}</div><div class="lib">À renouveler (≤ ${seuilMax()} j)</div></div>
+  </div>
+  <div class="carte"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px"><h2 style="margin:0">Alertes de renouvellement</h2>
+    <button class="btn mini" id="tb-imprimer">🖨 Imprimer la liste à renouveler</button></div>
+    <div class="trois-col">
+    ${groupes.map(g => `<div class="colonne-alerte"><h3><span class="puce" style="background:${g.couleur}"></span>${esc(g.titre)} <span class="badge b-inconnu">${g.items.length}</span></h3>
+      ${g.items.length ? `<ul class="liste-alerte">${g.items.map(a => `<li data-aut="${a.id}"><span>${esc(nomComplet(a))}<br><span class="mut petit">${esc(a.numero)} · fin ${fd(a.date_fin)}</span></span>${plaqueHtml(a.immatriculation)}</li>`).join("")}</ul>` : `<div class="mut petit">Aucune autorisation.</div>`}</div>`).join("")}
+    </div>
+    ${recentesExp.length ? `<h3 style="margin-top:16px">Expirées depuis moins de 30 jours, non renouvelées</h3><ul class="liste-alerte">${recentesExp.map(a => `<li data-aut="${a.id}"><span>${esc(nomComplet(a))} — <span class="mut">${esc(a.numero)}, expirée le ${fd(a.date_fin)}</span></span>${plaqueHtml(a.immatriculation)}</li>`).join("")}</ul>` : ""}
+  </div>
+  <div class="carte"><h2>Demandes en attente</h2>
+  ${attente.length ? `<div class="tableau-wrap"><table><thead><tr><th>N°</th><th>Reçue le</th><th>Riverain</th><th>Véhicule</th><th>Justificatif</th><th></th></tr></thead><tbody>
+    ${attente.slice(0, 10).map(d => { const r = riv(d.riverain_id), v = veh(d.vehicule_id); return `<tr><td>${esc(d.numero)}${demoB(d)}</td><td>${fd(d.date_reception)}</td><td>${esc(nomComplet(r))}</td><td>${plaqueHtml(v?.immatriculation)}</td><td>${d.justificatif_verifie ? "✅ Vérifié" : "⏳ À vérifier"}</td><td><button class="btn mini p" data-valider="${d.id}">Traiter</button></td></tr>`; }).join("")}
+  </tbody></table></div>` : `<div class="vide">Aucune demande en attente.</div>`}
+  </div>`;
+  brancherBandeau(c);
+  $$("[data-go]", c).forEach(t => t.onclick = () => aller(t.dataset.go));
+  $$("[data-aut]", c).forEach(t => t.onclick = () => ficheAutorisation(t.dataset.aut));
+  $$("[data-valider]", c).forEach(b => b.onclick = () => traiterDemande(b.dataset.valider));
+  $("#tb-imprimer", c).onclick = imprimerARenouveler;
+}
+function imprimerARenouveler() {
+  const l = S.autos.filter(a => aRenouveler(a) || (a.statut_effectif === "expiree" && a.jours_restants >= -30)).sort((a, b) => a.jours_restants - b.jours_restants);
+  imprimerListe(`Autorisations à renouveler (échéance ≤ ${seuilMax()} jours et expirées depuis moins de 30 jours)`,
+    ["N°", "Titulaire", "Adresse", "Téléphone", "Immatriculation", "Fin de validité", "Échéance", "Statut"],
+    l.map(a => [a.numero, nomComplet(a), [a.adresse, a.complement].filter(Boolean).join(", "), a.telephone || "", fPlaque(a.immatriculation), fd(a.date_fin),
+      a.jours_restants > 0 ? `J-${a.jours_restants}` : a.jours_restants === 0 ? "Aujourd'hui" : `Expirée depuis ${-a.jours_restants} j`, LIB[a.statut_effectif]]));
+}
+
+/* =====================================================================
+   2. NOUVELLE DEMANDE + REGISTRE DES DEMANDES
+   ===================================================================== */
+function ligneVehicule(i) {
+  return `<div class="vehicule-ligne" data-vl="${i}">
+    <div><label class="oblig">Immatriculation</label><input type="text" class="immat" placeholder="AB-123-CD" maxlength="12" autocomplete="off"></div>
+    <div><label>Marque</label><input type="text" class="marque" autocomplete="off"></div>
+    <div><label>Modèle</label><input type="text" class="modele" autocomplete="off"></div>
+    <div><label>Couleur</label><input type="text" class="couleur" autocomplete="off"></div>
+    <div><button type="button" class="btn mini danger" data-suppr-vl title="Retirer ce véhicule">✕</button></div></div>`;
+}
+function rendreDemande(c, q) {
+  const vue = q.get("vue") === "registre" ? "registre" : "saisie";
+  c.innerHTML = `<div class="entete-page"><div><h1>${vue === "saisie" ? "Nouvelle demande" : "Registre des demandes"}</h1>
+    <div class="mut">${vue === "saisie" ? "Saisie d'une demande papier déposée en mairie." : "Suivi et traitement des demandes enregistrées."}</div></div>
+    <div class="actions"><a class="btn ${vue === "saisie" ? "p" : ""}" href="#/demande">Saisir une demande</a><a class="btn ${vue === "registre" ? "p" : ""}" href="#/demande?vue=registre">Registre des demandes (${L.demandes.filter(d => d.statut === "en_attente").length} en attente)</a></div></div>
+    <div id="zone-demande"></div>`;
+  if (vue === "registre") return rendreRegistre($("#zone-demande", c));
+  rendreSaisie($("#zone-demande", c), q);
+}
+function rendreSaisie(z, q) {
+  const pre = q.get("r");
+  const optsRiv = [...L.riverains].sort((a, b) => nomComplet(a).localeCompare(nomComplet(b))).map(r => `<option value="${r.id}" ${r.id === pre ? "selected" : ""}>${esc(nomComplet(r))} — ${esc(r.adresse)}</option>`).join("");
+  const zones = (S.params.zones || []).map(x => `<option>${esc(x)}</option>`).join("");
+  const justifs = (S.params.types_justificatif || []).map(x => `<option>${esc(x)}</option>`).join("");
+  const agents = S.agentsListe.map(a => `<option value="${a.user_id}" ${a.user_id === S.moi.user_id ? "selected" : ""}>${esc(a.nom_complet)}</option>`).join("");
+  z.innerHTML = `<form id="f-dem" autocomplete="off" novalidate>
+  <div class="carte"><h2>1. Riverain demandeur</h2>
+    <div class="radios champ"><label><input type="radio" name="typeRiv" value="nouveau" ${pre ? "" : "checked"}> Nouveau riverain</label><label><input type="radio" name="typeRiv" value="existant" ${pre ? "checked" : ""}> Riverain déjà enregistré</label></div>
+    <div id="bloc-existant" class="${pre ? "" : "cache"}"><div class="champ"><label class="oblig">Rechercher le riverain</label>
+      <input type="search" id="rech-riv" placeholder="Nom, prénom ou adresse…"><select id="sel-riv" size="5" style="margin-top:6px">${optsRiv}</select></div></div>
+    <div id="bloc-nouveau" class="${pre ? "cache" : ""}">
+      <div class="ligne"><div class="champ" style="max-width:130px"><label>Civilité</label><select id="d-civ"><option></option><option>Mme</option><option>M.</option></select></div>
+        <div class="champ"><label class="oblig">Nom</label><input type="text" id="d-nom"></div>
+        <div class="champ"><label class="oblig">Prénom</label><input type="text" id="d-prenom"></div></div>
+      <div class="ligne"><div class="champ" style="grid-column:span 2"><label class="oblig">Adresse à Pasly (n° et voie)</label><input type="text" id="d-adr" placeholder="Ex. : 12 rue de l'Église"></div>
+        <div class="champ"><label>Complément</label><input type="text" id="d-comp" placeholder="Bât., appartement…"></div></div>
+      <div class="ligne"><div class="champ"><label>Code postal</label><input type="text" id="d-cp" value="02200"></div><div class="champ"><label>Commune</label><input type="text" id="d-com" value="Pasly"></div>
+        <div class="champ"><label>Téléphone</label><input type="tel" id="d-tel"></div><div class="champ"><label>Adresse électronique (facultative)</label><input type="email" id="d-mail"></div></div>
+    </div></div>
+  <div class="carte"><h2>2. Véhicule(s) du foyer</h2>
+    <p class="mut petit" style="margin-top:-6px">Règle en vigueur : ${+S.params.max_autorisations_foyer || "—"} autorisation(s) maximum par foyer (même adresse). Une demande est créée par véhicule.</p>
+    <div id="liste-vl">${ligneVehicule(0)}</div>
+    <button type="button" class="btn mini" id="ajout-vl">+ Ajouter un véhicule</button></div>
+  <div class="carte"><h2>3. Instruction de la demande</h2>
+    <div class="ligne">
+      <div class="champ"><label class="oblig">Date de réception</label><input type="date" id="d-date" value="${aujourdhui()}" max="${aujourdhui()}"></div>
+      <div class="champ"><label class="oblig">Agent ayant enregistré la demande</label><select id="d-agent">${agents}</select></div>
+      <div class="champ"><label>Zone de stationnement</label><select id="d-zone">${zones}</select></div></div>
+    <div class="ligne"><div class="champ"><label class="case"><input type="checkbox" id="d-justif"> Justificatif de domicile vérifié</label>
+        <select id="d-justif-type" style="margin-top:6px"><option value="">— Type de justificatif —</option>${justifs}</select>
+        ${S.params.justificatif_obligatoire ? `<div class="aide">Obligatoire pour valider une demande (paramètre communal).</div>` : ""}</div>
+      <div class="champ"><label>Observations</label><textarea id="d-obs" style="min-height:62px"></textarea></div></div>
+    <div class="champ"><label class="oblig">Statut de la demande</label>
+      <div class="radios"><label><input type="radio" name="statut" value="en_attente" checked> En attente</label><label><input type="radio" name="statut" value="validee"> Validée (délivrer l'autorisation)</label><label><input type="radio" name="statut" value="refusee"> Refusée</label></div></div>
+    <div class="champ cache" id="bloc-motif"><label class="oblig">Motif du refus</label><input type="text" id="d-motif"></div>
+  </div>
+  <div class="actions" style="justify-content:flex-end"><a class="btn" href="#/tableau">Annuler</a><button class="btn p" type="submit" id="d-ok">Enregistrer la demande</button></div>
+  </form>`;
+  const f = $("#f-dem", z);
+  $$("input[name=typeRiv]", f).forEach(r => r.onchange = () => { const ex = $("input[name=typeRiv]:checked", f).value === "existant"; $("#bloc-existant", f).classList.toggle("cache", !ex); $("#bloc-nouveau", f).classList.toggle("cache", ex); });
+  $("#rech-riv", f).oninput = e => { const t = e.target.value.toLowerCase(); $$("#sel-riv option", f).forEach(o => o.hidden = !o.textContent.toLowerCase().includes(t)); };
+  $$("input[name=statut]", f).forEach(r => r.onchange = () => $("#bloc-motif", f).classList.toggle("cache", $("input[name=statut]:checked", f).value !== "refusee"));
+  $("#d-justif-type", f).onchange = e => { if (e.target.value) $("#d-justif", f).checked = true; };
+  let n = 1;
+  $("#ajout-vl", f).onclick = () => { $("#liste-vl", f).insertAdjacentHTML("beforeend", ligneVehicule(n++)); };
+  $("#liste-vl", f).addEventListener("click", e => { if (e.target.matches("[data-suppr-vl]")) { if ($$(".vehicule-ligne", f).length > 1) e.target.closest(".vehicule-ligne").remove(); else toast("Au moins un véhicule est nécessaire.", "err"); } });
+  $("#liste-vl", f).addEventListener("blur", e => { if (e.target.matches("input.immat")) e.target.value = fPlaque(e.target.value); }, true);
+  f.onsubmit = e => { e.preventDefault(); enregistrerDemande(f); };
+}
+
+/* Validation d'une demande : règles contrôlées sur le poste, n° et QR créés au registre anonyme */
+async function validerDemande(d, opts = {}) {
+  if (d.statut !== "en_attente") throw new Error("Cette demande a déjà été traitée.");
+  const v = veh(d.vehicule_id), r = riv(d.riverain_id);
+  if (!v || !r) throw new Error("Fiche riverain ou véhicule introuvable.");
+  if (S.params.justificatif_obligatoire && !d.justificatif_verifie) throw new Error("Le justificatif de domicile doit être vérifié avant de valider la demande.");
+  const autre = S.autos.find(a => a.immatriculation === v.immatriculation && ["active", "suspendue"].includes(a.statut));
+  if (autre) throw new Error(`Ce véhicule dispose déjà d'une autorisation en cours (${autre.numero}). Utilisez le renouvellement.`);
+  const mx = +S.params.max_autorisations_foyer || 99, t = aujourdhui();
+  const n = S.autos.filter(a => ["active", "suspendue"].includes(a.statut) && a.date_fin >= t &&
+    (a.riverain_id === d.riverain_id || (normAdr(a.adresse) === normAdr(r.adresse) && normAdr(a.complement) === normAdr(r.complement)))).length;
+  if (n >= mx) throw new Error(`Le foyer a déjà atteint le nombre maximal d'autorisations (${mx}).`);
+  const a = await rpc("sta_creer_autorisation", { p_zone: opts.zone || null, p_date_debut: opts.debut || null, p_date_fin: opts.fin || null });
+  majServeur(a);
+  L.liens[a.id] = { numero: a.numero, riverain_id: d.riverain_id, vehicule_id: d.vehicule_id, immatriculation: v.immatriculation, demande_id: d.id, demo: !!d.demo };
+  Object.assign(d, { statut: "validee", date_decision: maintenant(), autorisation_id: a.id, decide_par: `${S.moi.prenom} ${S.moi.nom}` });
+  journalLocal("validation", "demande", d.numero, { autorisation: a.numero, riverain: nomComplet(r), plaque: fPlaque(v.immatriculation) });
+  await sauverLocal();
+  return a.id;
+}
+function refuserDemande(d, motif) {
+  Object.assign(d, { statut: "refusee", motif_refus: motif, date_decision: maintenant(), decide_par: `${S.moi.prenom} ${S.moi.nom}` });
+  journalLocal("refus", "demande", d.numero, { motif });
+}
+async function enregistrerDemande(f) {
+  const val = id => $(id, f).value.trim();
+  const existant = $("input[name=typeRiv]:checked", f).value === "existant";
+  const statut = $("input[name=statut]:checked", f).value;
+  let rivId = existant ? $("#sel-riv", f).value : null;
+  const vls = $$(".vehicule-ligne", f).map(l => ({ immatriculation: normPlaque($(".immat", l).value), marque: $(".marque", l).value.trim() || null, modele: $(".modele", l).value.trim() || null, couleur: $(".couleur", l).value.trim() || null }));
+  if (existant && !rivId) return toast("Sélectionnez le riverain dans la liste.", "err");
+  if (!existant && (!val("#d-nom") || !val("#d-prenom") || !val("#d-adr"))) return toast("Nom, prénom et adresse sont obligatoires.", "err");
+  if (!val("#d-date")) return toast("La date de réception est obligatoire.", "err");
+  if (vls.some(v => v.immatriculation.length < 4)) return toast("Chaque véhicule doit avoir une immatriculation valide.", "err");
+  if (new Set(vls.map(v => v.immatriculation)).size !== vls.length) return toast("La même immatriculation est saisie deux fois.", "err");
+  if (statut === "refusee" && !val("#d-motif")) return toast("Indiquez le motif du refus.", "err");
+  if (statut === "validee" && S.params.justificatif_obligatoire && !$("#d-justif", f).checked) return toast("Le justificatif de domicile doit être vérifié pour valider la demande.", "err");
+  if (!existant) {
+    const doublon = L.riverains.find(r => r.nom.toUpperCase() === val("#d-nom").toUpperCase() && (r.prenom || "").toLowerCase() === val("#d-prenom").toLowerCase());
+    if (doublon && await confirmer("Riverain déjà enregistré ?", `Un riverain <b>${esc(nomComplet(doublon))}</b> existe déjà (${esc(doublon.adresse)}). Rattacher la demande à cette fiche existante ?`, { ok: "Utiliser la fiche existante" })) rivId = doublon.id;
+  }
+  for (const v of vls) {
+    const ex = L.vehicules.find(x => x.actif && x.immatriculation === v.immatriculation);
+    if (ex && ex.riverain_id !== rivId) return toast(`Le véhicule ${fPlaque(v.immatriculation)} est déjà enregistré au nom de ${nomComplet(riv(ex.riverain_id))}.`, "err");
+    v.existant = ex || null;
+  }
+  chargement(true); $("#d-ok", f).disabled = true;
+  const bilan = [];
+  try {
+    if (!rivId) {
+      const r = { id: uuid(), civilite: val("#d-civ") || null, nom: val("#d-nom").toUpperCase(), prenom: val("#d-prenom"), adresse: val("#d-adr"), complement: val("#d-comp") || null,
+        code_postal: val("#d-cp") || "02200", commune: val("#d-com") || "Pasly", telephone: val("#d-tel") || null, email: val("#d-mail") || null, notes: null, demo: false, created_at: maintenant(), updated_at: maintenant() };
+      L.riverains.push(r); rivId = r.id; journalLocal("création", "riverain", nomComplet(r));
+    }
+    const agentId = $("#d-agent", f).value;
+    const agentNom = S.agentsListe.find(a => a.user_id === agentId)?.nom_complet || `${S.moi.prenom} ${S.moi.nom}`;
+    const demandes = [];
+    for (const v of vls) {
+      let vid = v.existant?.id;
+      if (!vid) { const nv = { id: uuid(), riverain_id: rivId, immatriculation: v.immatriculation, marque: v.marque, modele: v.modele, couleur: v.couleur, actif: true, demo: false, created_at: maintenant() }; L.vehicules.push(nv); vid = nv.id; journalLocal("création", "véhicule", fPlaque(nv.immatriculation)); }
+      const d = { id: uuid(), numero: prochainNumeroDemande(), riverain_id: rivId, vehicule_id: vid, type: "premiere", date_reception: val("#d-date"), justificatif_verifie: $("#d-justif", f).checked,
+        justificatif_type: val("#d-justif-type") || null, agent_id: agentId, agent_nom: agentNom, statut: "en_attente", observations: val("#d-obs") || null, demo: false, created_at: maintenant() };
+      L.demandes.unshift(d); demandes.push({ d, plaque: v.immatriculation }); journalLocal("création", "demande", d.numero);
+    }
+    await sauverLocal();
+    for (const { d, plaque } of demandes) {
+      const ligne = { plaque, demande: d.numero, etat: "en_attente", info: "" };
+      try {
+        if (statut === "validee") { ligne.autId = await validerDemande(d, { zone: val("#d-zone") }); ligne.etat = "validee"; }
+        else if (statut === "refusee") { refuserDemande(d, val("#d-motif")); await sauverLocal(); ligne.etat = "refusee"; }
+      } catch (e) { ligne.info = messageErreur(e) + " La demande reste en attente."; }
+      bilan.push(ligne);
+    }
+  } catch (e) { chargement(false); $("#d-ok", f).disabled = false; return erreur(e); }
+  chargement(false);
+  const autIds = bilan.filter(b => b.autId).map(b => b.autId);
+  const m = ouvrirModale("Demande enregistrée", `<p style="margin-top:0">Riverain : <b>${esc(nomComplet(riv(rivId)))}</b></p>
+    <table><thead><tr><th>Véhicule</th><th>Demande</th><th>Résultat</th></tr></thead><tbody>
+    ${bilan.map(b => { const a = S.autos.find(x => x.id === b.autId); return `<tr><td>${plaqueHtml(b.plaque)}</td><td>${esc(b.demande)}</td><td>${badge(b.etat)} ${a ? `<b>${esc(a.numero)}</b> jusqu'au ${fd(a.date_fin)}` : ""}${b.info ? `<div class="petit" style="color:var(--rouge)">${esc(b.info)}</div>` : ""}</td></tr>`; }).join("")}
+    </tbody></table>`,
+    `<button class="btn" id="bm-fiche">Voir la fiche riverain</button><button class="btn" id="bm-autre">Nouvelle saisie</button>${autIds.length ? `<button class="btn p" id="bm-mac">🖨 Imprimer le(s) macaron(s)</button>` : ""}`);
+  $("#bm-autre", m).onclick = () => { fermerModale(); afficherPage(); };
+  $("#bm-fiche", m).onclick = () => { fermerModale(); aller("#/riverains"); setTimeout(() => ficheRiverain(rivId), 50); };
+  if (autIds.length) $("#bm-mac", m).onclick = () => { fermerModale(); genererMacarons(autIds, "4"); aller("#/macarons"); };
+}
+function rendreRegistre(z) {
+  z.innerHTML = `<div class="carte"><div class="filtres">
+    <div><label>Statut</label><select id="rg-st"><option value="en_attente">En attente</option><option value="validee">Validées</option><option value="refusee">Refusées</option><option value="">Toutes</option></select></div>
+    <div><label>Recherche</label><input type="search" id="rg-q" placeholder="N°, nom, immatriculation…"></div>
+    <div style="margin-left:auto"><button class="btn" id="rg-csv">Exporter (CSV)</button></div></div>
+    <div class="tableau-wrap" id="rg-tab"></div></div>`;
+  const dessiner = () => {
+    const st = $("#rg-st", z).value, t = $("#rg-q", z).value.toLowerCase();
+    const l = L.demandes.filter(d => !st || d.statut === st).filter(d => { const r = riv(d.riverain_id), v = veh(d.vehicule_id); return !t || `${d.numero} ${nomComplet(r)} ${r?.adresse} ${v?.immatriculation} ${fPlaque(v?.immatriculation)}`.toLowerCase().includes(t); });
+    $("#rg-tab", z).innerHTML = l.length ? `<table><thead><tr><th>N°</th><th>Reçue le</th><th>Riverain</th><th>Adresse</th><th>Véhicule</th><th>Justificatif</th><th>Agent</th><th>Statut</th><th></th></tr></thead><tbody>
+      ${l.map(d => { const r = riv(d.riverain_id), v = veh(d.vehicule_id), a = S.autos.find(x => x.id === d.autorisation_id); return `<tr>
+        <td>${esc(d.numero)}${demoB(d)}</td><td>${fd(d.date_reception)}</td><td>${esc(nomComplet(r))}</td><td class="petit">${esc(r?.adresse)}</td><td>${plaqueHtml(v?.immatriculation)}</td>
+        <td>${d.justificatif_verifie ? "✅" : "⏳"} <span class="petit mut">${esc(d.justificatif_type || "")}</span></td><td class="petit">${esc(d.agent_nom || "")}</td>
+        <td>${badge(d.statut)}${d.statut === "refusee" ? `<div class="petit mut">${esc(d.motif_refus)}</div>` : ""}${a ? `<div class="petit"><a href="#" data-aut="${a.id}">${esc(a.numero)}</a></div>` : ""}</td>
+        <td>${d.statut === "en_attente" ? `<button class="btn mini p" data-traiter="${d.id}">Traiter</button>` : ""}</td></tr>`; }).join("")}</tbody></table>` : `<div class="vide">Aucune demande.</div>`;
+    $$("[data-traiter]", z).forEach(b => b.onclick = () => traiterDemande(b.dataset.traiter));
+    $$("[data-aut]", z).forEach(b => b.onclick = e => { e.preventDefault(); ficheAutorisation(b.dataset.aut); });
+    return l;
+  };
+  $("#rg-st", z).onchange = dessiner; $("#rg-q", z).oninput = dessiner;
+  $("#rg-csv", z).onclick = () => { const l = dessiner(); csv(`demandes-${aujourdhui()}.csv`, ["N°", "Reçue le", "Nom", "Prénom", "Adresse", "Immatriculation", "Justificatif vérifié", "Type justificatif", "Agent", "Statut", "Motif refus"],
+    l.map(d => { const r = riv(d.riverain_id) || {}, v = veh(d.vehicule_id) || {}; return [d.numero, fd(d.date_reception), r.nom, r.prenom, r.adresse, fPlaque(v.immatriculation), d.justificatif_verifie ? "oui" : "non", d.justificatif_type, d.agent_nom, LIB[d.statut], d.motif_refus]; })); };
+  dessiner();
+}
+function traiterDemande(id) {
+  const d = L.demandes.find(x => x.id === id); if (!d) return;
+  const r = riv(d.riverain_id), v = veh(d.vehicule_id);
+  const zones = (S.params.zones || []).map(x => `<option>${esc(x)}</option>`).join("");
+  const nbFoyer = S.autos.filter(a => ["active", "suspendue"].includes(a.statut_effectif) && (a.riverain_id === d.riverain_id || normAdr(a.adresse) === normAdr(r?.adresse))).length;
+  const m = ouvrirModale(`Traiter la demande ${d.numero}`, `
+    <dl class="fiche-grille"><dt>Riverain</dt><dd>${esc(nomComplet(r))}</dd><dt>Adresse</dt><dd>${esc(r?.adresse)} ${esc(r?.complement || "")}</dd>
+    <dt>Véhicule</dt><dd>${plaqueHtml(v?.immatriculation)} ${esc([v?.marque, v?.modele].filter(Boolean).join(" "))}</dd><dt>Reçue le</dt><dd>${fd(d.date_reception)} par ${esc(d.agent_nom || "—")}</dd>
+    <dt>Foyer</dt><dd>${nbFoyer} autorisation(s) en cours sur ${+S.params.max_autorisations_foyer || "—"} autorisée(s)</dd></dl>
+    <hr style="border:0;border-top:1px solid var(--bord);margin:14px 0">
+    <div class="champ"><label class="case"><input type="checkbox" id="t-justif" ${d.justificatif_verifie ? "checked" : ""}> Justificatif de domicile vérifié</label></div>
+    <div class="ligne"><div class="champ"><label>Zone</label><select id="t-zone">${zones}</select></div>
+      <div class="champ"><label>Début de validité</label><input type="date" id="t-deb" value="${aujourdhui()}"></div>
+      <div class="champ"><label>Fin de validité</label><input type="date" id="t-fin" value="${calculerFin(aujourdhui())}"><div class="aide">Calculée selon les paramètres ; modifiable.</div></div></div>`,
+    `<button class="btn danger" id="t-refus">Refuser…</button><button class="btn" data-fermer>Fermer</button><button class="btn vert" id="t-ok">Valider et délivrer l'autorisation</button>`);
+  $("#t-deb", m).onchange = e => { $("#t-fin", m).value = calculerFin(e.target.value); };
+  $("#t-ok", m).onclick = async () => {
+    try {
+      chargement(true);
+      d.justificatif_verifie = $("#t-justif", m).checked;
+      const aid = await validerDemande(d, { zone: $("#t-zone", m).value, debut: $("#t-deb", m).value || null, fin: $("#t-fin", m).value || null });
+      chargement(false); fermerModale();
+      const a = S.autos.find(x => x.id === aid);
+      toast(`Autorisation ${a?.numero} délivrée.`, "ok");
+      await afficherPage();
+      if (await confirmer("Autorisation délivrée", `L'autorisation <b>${esc(a?.numero)}</b> est active jusqu'au ${fd(a?.date_fin)}. Imprimer le macaron maintenant ?`, { ok: "Imprimer le macaron" })) genererMacarons([aid], "1");
+    } catch (e) { chargement(false); erreur(e); }
+  };
+  $("#t-refus", m).onclick = async () => {
+    fermerModale();
+    const motif = await demander(`Refuser la demande ${d.numero}`, "Motif du refus", { obligatoire: true, multi: true, ok: "Refuser la demande", danger: true });
+    if (!motif) return;
+    try { refuserDemande(d, motif); await sauverLocal(); toast("Demande refusée.", "ok"); afficherPage(); } catch (e) { erreur(e); }
+  };
+}
+
+/* =====================================================================
+   3. RIVERAINS
+   ===================================================================== */
+function rendreRiverains(c) {
+  c.innerHTML = `<div class="entete-page"><div><h1>Liste des riverains</h1><div class="mut">${L.riverains.length} riverain(s) enregistré(s) sur ce poste</div></div>
+    <div class="actions"><button class="btn" id="rv-csv">Exporter (CSV)</button><button class="btn" id="rv-imp">🖨 Imprimer</button><a class="btn p" href="#/demande">+ Nouvelle demande</a></div></div>
+    ${bandeauStockage()}
+    <div class="carte"><div class="filtres"><div><label>Recherche</label><input type="search" id="rv-q" placeholder="Nom, adresse, téléphone, immatriculation…"></div>
+      <div><label>Situation</label><select id="rv-f"><option value="">Tous</option><option value="actif">Avec autorisation active</option><option value="sans">Sans autorisation active</option></select></div></div>
+    <div class="tableau-wrap" id="rv-tab"></div></div>`;
+  brancherBandeau(c);
+  const liste = () => {
+    const t = $("#rv-q", c).value.toLowerCase(), f = $("#rv-f", c).value;
+    return [...L.riverains].sort((a, b) => nomComplet(a).localeCompare(nomComplet(b))).filter(r => {
+      const vs = L.vehicules.filter(v => v.riverain_id === r.id);
+      const act = S.autos.some(a => a.riverain_id === r.id && a.statut_effectif === "active");
+      if (f === "actif" && !act) return false; if (f === "sans" && act) return false;
+      return !t || `${nomComplet(r)} ${r.adresse} ${r.complement || ""} ${r.telephone || ""} ${r.email || ""} ${vs.map(v => v.immatriculation + " " + fPlaque(v.immatriculation)).join(" ")}`.toLowerCase().includes(t);
+    });
+  };
+  const dessiner = () => {
+    const l = liste();
+    $("#rv-tab", c).innerHTML = l.length ? `<table><thead><tr><th>Riverain</th><th>Adresse</th><th>Téléphone</th><th>Véhicules</th><th>Autorisations</th></tr></thead><tbody>
+    ${l.map(r => { const vs = L.vehicules.filter(v => v.riverain_id === r.id && v.actif), as = S.autos.filter(a => a.riverain_id === r.id && a.statut_effectif !== "annulee");
+      return `<tr class="clic" data-riv="${r.id}"><td><b>${esc(nomComplet(r))}</b>${demoB(r)}</td><td>${esc(r.adresse)}${r.complement ? `<br><span class="mut petit">${esc(r.complement)}</span>` : ""}</td><td>${esc(r.telephone || "")}</td>
+      <td>${vs.map(v => plaqueHtml(v.immatriculation)).join(" ") || "—"}</td><td>${as.map(a => badge(a.statut_effectif)).join(" ") || '<span class="mut">—</span>'}</td></tr>`; }).join("")}</tbody></table>` : `<div class="vide">Aucun riverain.</div>`;
+    $$("[data-riv]", c).forEach(tr => tr.onclick = () => ficheRiverain(tr.dataset.riv));
+  };
+  $("#rv-q", c).oninput = dessiner; $("#rv-f", c).onchange = dessiner;
+  $("#rv-csv", c).onclick = () => csv(`riverains-${aujourdhui()}.csv`, ["Civilité", "Nom", "Prénom", "Adresse", "Complément", "CP", "Commune", "Téléphone", "Courriel", "Véhicules"],
+    liste().map(r => [r.civilite, r.nom, r.prenom, r.adresse, r.complement, r.code_postal, r.commune, r.telephone, r.email, L.vehicules.filter(v => v.riverain_id === r.id && v.actif).map(v => fPlaque(v.immatriculation)).join(", ")]));
+  $("#rv-imp", c).onclick = () => imprimerListe("Liste des riverains", ["Riverain", "Adresse", "Téléphone", "Véhicules", "Autorisations actives"],
+    liste().map(r => [nomComplet(r), [r.adresse, r.complement].filter(Boolean).join(", "), r.telephone || "", L.vehicules.filter(v => v.riverain_id === r.id && v.actif).map(v => fPlaque(v.immatriculation)).join(", "), S.autos.filter(a => a.riverain_id === r.id && a.statut_effectif === "active").map(a => a.numero).join(", ")]));
+  dessiner();
+}
+function ficheRiverain(id) {
+  const r = riv(id); if (!r) return;
+  const vs = L.vehicules.filter(v => v.riverain_id === id), as = S.autos.filter(a => a.riverain_id === id), ds = L.demandes.filter(d => d.riverain_id === id);
+  const m = ouvrirModale(`Fiche riverain — ${nomComplet(r)}`, `
+    <form id="fr" autocomplete="off">
+    <div class="ligne"><div class="champ" style="max-width:120px"><label>Civilité</label><select id="r-civ"><option></option><option ${r.civilite === "Mme" ? "selected" : ""}>Mme</option><option ${r.civilite === "M." ? "selected" : ""}>M.</option></select></div>
+      <div class="champ"><label class="oblig">Nom</label><input type="text" id="r-nom" value="${esc(r.nom)}"></div><div class="champ"><label>Prénom</label><input type="text" id="r-prenom" value="${esc(r.prenom)}"></div></div>
+    <div class="ligne"><div class="champ" style="grid-column:span 2"><label class="oblig">Adresse</label><input type="text" id="r-adr" value="${esc(r.adresse)}"></div><div class="champ"><label>Complément</label><input type="text" id="r-comp" value="${esc(r.complement || "")}"></div></div>
+    <div class="ligne"><div class="champ"><label>Code postal</label><input type="text" id="r-cp" value="${esc(r.code_postal)}"></div><div class="champ"><label>Commune</label><input type="text" id="r-com" value="${esc(r.commune)}"></div>
+      <div class="champ"><label>Téléphone</label><input type="tel" id="r-tel" value="${esc(r.telephone || "")}"></div><div class="champ"><label>Courriel</label><input type="email" id="r-mail" value="${esc(r.email || "")}"></div></div>
+    <div class="champ"><label>Notes internes</label><textarea id="r-notes">${esc(r.notes || "")}</textarea></div>
+    </form>
+    <h3 style="margin-top:6px">Véhicules</h3>
+    ${vs.length ? `<table><tbody>${vs.map(v => { const a = autoEnCours(v.id); return `<tr><td>${plaqueHtml(v.immatriculation)}</td><td>${esc([v.marque, v.modele, v.couleur].filter(Boolean).join(" "))}</td><td>${v.actif ? "" : '<span class="badge b-inconnu">Inactif</span>'} ${a ? badge(a.statut_effectif) + " " + esc(a.numero) : ""}</td></tr>`; }).join("")}</tbody></table>` : `<p class="mut">Aucun véhicule.</p>`}
+    <h3 style="margin-top:14px">Autorisations</h3>
+    ${as.length ? `<table><tbody>${as.map(a => `<tr class="clic" data-aut="${a.id}"><td><b>${esc(a.numero)}</b></td><td>${plaqueHtml(a.immatriculation)}</td><td>${fd(a.date_delivrance)} → ${fd(a.date_fin)}</td><td>${badge(a.statut_effectif)}</td></tr>`).join("")}</tbody></table>` : `<p class="mut">Aucune autorisation.</p>`}
+    <h3 style="margin-top:14px">Demandes</h3>
+    ${ds.length ? `<table><tbody>${ds.map(d => `<tr><td>${esc(d.numero)}</td><td>${fd(d.date_reception)}</td><td>${plaqueHtml(veh(d.vehicule_id)?.immatriculation)}</td><td>${badge(d.statut)}</td></tr>`).join("")}</tbody></table>` : `<p class="mut">Aucune demande.</p>`}
+    <p class="mut petit" style="margin-top:14px">Fiche créée le ${fdt(r.created_at)} — modifiée le ${fdt(r.updated_at)} — conservée uniquement sur ce poste.</p>`,
+    `${estAdmin() ? `<button class="btn danger" id="r-suppr">Supprimer (RGPD)</button>` : ""}<button class="btn" id="r-rgpd" title="Droit d'accès : export des données de la personne">Exporter ses données</button>
+     <button class="btn" id="r-dem">+ Nouvelle demande</button><button class="btn p" id="r-ok">Enregistrer</button>`, { large: true });
+  $$("[data-aut]", m).forEach(t => t.onclick = () => ficheAutorisation(t.dataset.aut));
+  $("#r-dem", m).onclick = () => { fermerModale(); aller(`#/demande?r=${id}`); };
+  $("#r-ok", m).onclick = async () => {
+    const v = s => $(s, m).value.trim();
+    if (!v("#r-nom") || !v("#r-adr")) return toast("Nom et adresse obligatoires.", "err");
+    const nv = { civilite: v("#r-civ") || null, nom: v("#r-nom").toUpperCase(), prenom: v("#r-prenom"), adresse: v("#r-adr"), complement: v("#r-comp") || null,
+      code_postal: v("#r-cp"), commune: v("#r-com"), telephone: v("#r-tel") || null, email: v("#r-mail") || null, notes: v("#r-notes") || null };
+    const diff = {}; for (const k in nv) if ((r[k] ?? null) !== (nv[k] ?? null)) diff[k] = { avant: r[k] ?? null, apres: nv[k] };
+    if (!Object.keys(diff).length) return fermerModale();
+    Object.assign(r, nv, { updated_at: maintenant() }); journalLocal("modification", "riverain", nomComplet(r), diff);
+    try { await sauverLocal(); toast("Fiche mise à jour.", "ok"); fermerModale(); afficherPage(); } catch (e) { erreur(e); }
+  };
+  $("#r-rgpd", m).onclick = () => {
+    const as2 = as.map(a => ({ numero: a.numero, immatriculation: fPlaque(a.immatriculation), zone: a.zone, date_delivrance: a.date_delivrance, date_fin: a.date_fin, statut: a.statut_effectif }));
+    telecharger(`donnees-${r.nom}-${aujourdhui()}.json`, JSON.stringify({ commune: "Pasly", objet: "Données détenues — stationnement riverains", edite_le: maintenant(), riverain: r, vehicules: vs, autorisations: as2, demandes: ds }, null, 2));
+    journalLocal("droit d'accès", "riverain", nomComplet(r)); sauverLocal();
+  };
+  if (estAdmin()) $("#r-suppr", m).onclick = async () => {
+    fermerModale();
+    if (!await confirmer("Supprimer définitivement ce riverain", `Toutes les données de <b>${esc(nomComplet(r))}</b> (véhicules, demandes) sont effacées de ce poste, et ses autorisations sont retirées du registre : les macarons correspondants deviendront « inconnus » au contrôle. Action irréversible.`, { danger: true, ok: "Supprimer définitivement", saisie: "SUPPRIMER" })) return;
+    try {
+      const ids = S.autos.filter(a => a.riverain_id === id).map(a => a.id);
+      if (ids.length) await req(sb.from("sta_autorisations").delete().in("id", ids));
+      S.serveur = S.serveur.filter(a => !ids.includes(a.id)); ids.forEach(i => delete L.liens[i]);
+      L.riverains = L.riverains.filter(x => x.id !== id); L.vehicules = L.vehicules.filter(v => v.riverain_id !== id); L.demandes = L.demandes.filter(d => d.riverain_id !== id);
+      journalLocal("suppression", "riverain", "Fiche supprimée (droit à l'effacement)", { autorisations_retirees: ids.length });
+      await sauverLocal(); toast("Riverain supprimé.", "ok"); afficherPage();
+    } catch (e) { erreur(e); }
+  };
+}
+
+/* =====================================================================
+   4. VÉHICULES
+   ===================================================================== */
+function rendreVehicules(c) {
+  c.innerHTML = `<div class="entete-page"><div><h1>Gestion des véhicules</h1><div class="mut">${L.vehicules.filter(v => v.actif).length} véhicule(s) actif(s)</div></div>
+    <div class="actions"><button class="btn" id="vh-csv">Exporter (CSV)</button></div></div>
+    <div class="carte"><div class="filtres"><div><label>Recherche</label><input type="search" id="vh-q" placeholder="Immatriculation, marque, titulaire…"></div>
+    <div><label>Affichage</label><select id="vh-f"><option value="actifs">Véhicules actifs</option><option value="autorises">Avec autorisation active</option><option value="sans">Sans autorisation en cours</option><option value="tous">Tous (y compris inactifs)</option></select></div></div>
+    <div class="tableau-wrap" id="vh-tab"></div></div>`;
+  const liste = () => {
+    const tl = $("#vh-q", c).value.toLowerCase(), t = normPlaque(tl), f = $("#vh-f", c).value;
+    return L.vehicules.filter(v => {
+      const a = autoEnCours(v.id);
+      if (f === "actifs" && !v.actif) return false; if (f === "autorises" && !(a && a.statut_effectif === "active")) return false; if (f === "sans" && (a || !v.actif)) return false;
+      return !tl || (t && v.immatriculation.includes(t)) || `${v.marque || ""} ${v.modele || ""} ${nomComplet(riv(v.riverain_id))}`.toLowerCase().includes(tl);
+    }).sort((a, b) => a.immatriculation.localeCompare(b.immatriculation));
+  };
+  const dessiner = () => {
+    const l = liste();
+    $("#vh-tab", c).innerHTML = l.length ? `<table><thead><tr><th>Immatriculation</th><th>Véhicule</th><th>Titulaire</th><th>Autorisation</th><th>Actions</th></tr></thead><tbody>
+    ${l.map(v => { const a = autoEnCours(v.id) || S.autos.filter(x => x.vehicule_id === v.id).sort((x, y) => y.date_fin.localeCompare(x.date_fin))[0]; const r = riv(v.riverain_id);
+      return `<tr><td>${plaqueHtml(v.immatriculation)}${demoB(v)}${v.actif ? "" : ' <span class="badge b-inconnu">Inactif</span>'}</td><td>${esc([v.marque, v.modele, v.couleur].filter(Boolean).join(" ") || "—")}</td>
+      <td><a href="#" data-riv="${r?.id}">${esc(nomComplet(r))}</a></td><td>${a ? `<a href="#" data-aut="${a.id}">${esc(a.numero)}</a> ${badge(a.statut_effectif)}<div class="petit mut">fin ${fd(a.date_fin)}</div>` : '<span class="mut">Aucune</span>'}</td>
+      <td class="actions"><button class="btn mini" data-immat="${v.id}">Changer l'immatriculation</button><button class="btn mini" data-edit="${v.id}">Modifier</button>
+      ${v.actif ? `<button class="btn mini orange" data-desact="${v.id}">Désactiver</button>` : `<button class="btn mini" data-react="${v.id}">Réactiver</button>`}</td></tr>`; }).join("")}</tbody></table>` : `<div class="vide">Aucun véhicule.</div>`;
+    $$("[data-riv]", c).forEach(b => b.onclick = e => { e.preventDefault(); ficheRiverain(b.dataset.riv); });
+    $$("[data-aut]", c).forEach(b => b.onclick = e => { e.preventDefault(); ficheAutorisation(b.dataset.aut); });
+    $$("[data-immat]", c).forEach(b => b.onclick = () => changerImmatriculation(b.dataset.immat));
+    $$("[data-edit]", c).forEach(b => b.onclick = () => modifierVehicule(b.dataset.edit));
+    $$("[data-desact]", c).forEach(b => b.onclick = () => activerVehicule(b.dataset.desact, false));
+    $$("[data-react]", c).forEach(b => b.onclick = () => activerVehicule(b.dataset.react, true));
+  };
+  $("#vh-q", c).oninput = dessiner; $("#vh-f", c).onchange = dessiner;
+  $("#vh-csv", c).onclick = () => csv(`vehicules-${aujourdhui()}.csv`, ["Immatriculation", "Marque", "Modèle", "Couleur", "Titulaire", "Adresse", "Autorisation", "Statut", "Fin"],
+    liste().map(v => { const a = autoEnCours(v.id), r = riv(v.riverain_id) || {}; return [fPlaque(v.immatriculation), v.marque, v.modele, v.couleur, nomComplet(r), r.adresse, a?.numero, a ? LIB[a.statut_effectif] : "", a ? fd(a.date_fin) : ""]; }));
+  dessiner();
+}
+async function changerImmatriculation(vid) {
+  const v = veh(vid); if (!v) return;
+  const a = autoEnCours(vid);
+  const nv = await demander("Changer l'immatriculation", "Nouvelle immatriculation", { valeur: fPlaque(v.immatriculation), obligatoire: true,
+    message: `Véhicule actuel : ${plaqueHtml(v.immatriculation)}${a ? `<br>L'autorisation <b>${esc(a.numero)}</b> suit le changement. Le QR code reste le même ; ${S.params.afficher_plaque_macaron !== false ? "réimprimez le macaron (la plaque y figure)." : "le macaron reste valable."}` : ""}` });
+  const p = normPlaque(nv);
+  if (!nv || p === v.immatriculation) return;
+  if (p.length < 4) return toast("Immatriculation invalide.", "err");
+  const autre = S.autos.find(x => x.immatriculation === p && ["active", "suspendue"].includes(x.statut) && x.vehicule_id !== vid);
+  if (autre) return toast(`Cette immatriculation est déjà couverte par l'autorisation ${autre.numero}.`, "err");
+  if (L.vehicules.some(x => x.immatriculation === p && x.actif && x.id !== vid)) return toast("Cette immatriculation est déjà enregistrée pour un autre véhicule actif.", "err");
+  const ancien = v.immatriculation; v.immatriculation = p;
+  for (const [id, l] of Object.entries(L.liens)) {
+    const s = S.serveur.find(x => x.id === id);
+    if (l.vehicule_id === vid && s && ["active", "suspendue"].includes(s.statut)) { l.immatriculation = p; if (S.params.afficher_plaque_macaron !== false) l.macaron_imprime_le = null; }
+  }
+  journalLocal("changement d'immatriculation", "véhicule", fPlaque(p), { avant: fPlaque(ancien), apres: fPlaque(p) });
+  try { await sauverLocal(); toast(`Immatriculation modifiée : ${fPlaque(p)}.`, "ok"); afficherPage(); } catch (e) { erreur(e); }
+}
+function modifierVehicule(vid) {
+  const v = veh(vid); if (!v) return;
+  const m = ouvrirModale(`Véhicule ${fPlaque(v.immatriculation)}`, `<div class="ligne"><div class="champ"><label>Marque</label><input type="text" id="v-ma" value="${esc(v.marque || "")}"></div>
+    <div class="champ"><label>Modèle</label><input type="text" id="v-mo" value="${esc(v.modele || "")}"></div><div class="champ"><label>Couleur</label><input type="text" id="v-co" value="${esc(v.couleur || "")}"></div></div>`,
+    `<button class="btn" data-fermer>Annuler</button><button class="btn p" id="v-ok">Enregistrer</button>`);
+  $("#v-ok", m).onclick = async () => {
+    Object.assign(v, { marque: $("#v-ma", m).value.trim() || null, modele: $("#v-mo", m).value.trim() || null, couleur: $("#v-co", m).value.trim() || null });
+    journalLocal("modification", "véhicule", fPlaque(v.immatriculation));
+    try { await sauverLocal(); fermerModale(); toast("Véhicule mis à jour.", "ok"); afficherPage(); } catch (e) { erreur(e); }
+  };
+}
+async function activerVehicule(vid, actif) {
+  const v = veh(vid); if (!actif && autoEnCours(vid)) return toast("Ce véhicule a une autorisation en cours : révoquez-la d'abord (Autorisations).", "err");
+  if (!actif && !await confirmer("Désactiver le véhicule", `Le véhicule ${plaqueHtml(v.immatriculation)} ne sera plus proposé (vendu, remplacé…). L'historique est conservé.`)) return;
+  if (actif && L.vehicules.some(x => x.actif && x.id !== vid && x.immatriculation === v.immatriculation)) return toast("Un autre véhicule actif porte cette immatriculation.", "err");
+  v.actif = actif; journalLocal(actif ? "réactivation" : "désactivation", "véhicule", fPlaque(v.immatriculation));
+  try { await sauverLocal(); toast(actif ? "Véhicule réactivé." : "Véhicule désactivé.", "ok"); afficherPage(); } catch (e) { erreur(e); }
+}
+
+/* =====================================================================
+   5. AUTORISATIONS
+   ===================================================================== */
+function rendreAutorisations(c, q) {
+  c.innerHTML = `<div class="entete-page"><div><h1>Autorisations</h1><div class="mut">${S.autos.length} autorisation(s) au registre</div></div>
+    <div class="actions"><button class="btn" id="au-imp">🖨 Imprimer la liste affichée</button><button class="btn" id="au-ren">🖨 Liste à renouveler</button><button class="btn" id="au-csv">Exporter (CSV)</button></div></div>
+    <div class="carte"><div class="filtres">
+      <div><label>Statut</label><select id="au-f"><option value="">Toutes</option><option value="active">Actives</option><option value="renouveler">À renouveler (≤ ${seuilMax()} j)</option><option value="expiree">Expirées</option><option value="suspendue">Suspendues</option><option value="annulee">Annulées</option><option value="orphelin">Sans fiche sur ce poste</option></select></div>
+      <div><label>Recherche</label><input type="search" id="au-q" placeholder="N°, titulaire, adresse, immatriculation…"></div>
+      <div><label>Zone</label><select id="au-z"><option value="">Toutes</option>${(S.params.zones || []).map(z => `<option>${esc(z)}</option>`).join("")}</select></div></div>
+    <div class="tableau-wrap" id="au-tab"></div></div>`;
+  if (q.get("f")) $("#au-f", c).value = q.get("f");
+  const liste = () => {
+    const f = $("#au-f", c).value, tl = $("#au-q", c).value.toLowerCase(), t = normPlaque(tl), z = $("#au-z", c).value;
+    return S.autos.filter(a => (f === "renouveler" ? aRenouveler(a) : f === "orphelin" ? a.orphelin : !f || a.statut_effectif === f) && (!z || a.zone === z) &&
+      (!tl || (t && a.immatriculation.includes(t)) || `${a.numero} ${nomComplet(a)} ${a.adresse}`.toLowerCase().includes(tl)))
+      .sort((a, b) => f === "renouveler" ? a.jours_restants - b.jours_restants : a.numero.localeCompare(b.numero));
+  };
+  const dessiner = () => {
+    const l = liste();
+    $("#au-tab", c).innerHTML = l.length ? `<table><thead><tr><th>N°</th><th>Titulaire</th><th>Véhicule</th><th>Zone</th><th>Délivrée le</th><th>Fin</th><th>Échéance</th><th>Statut</th><th>Macaron</th></tr></thead><tbody>
+    ${l.map(a => `<tr class="clic" data-aut="${a.id}"><td><b>${esc(a.numero)}</b>${demoB(a)}</td><td>${a.orphelin ? '<span class="mut">Fiche absente de ce poste</span>' : `${esc(nomComplet(a))}<div class="petit mut">${esc(a.adresse)}</div>`}</td><td>${plaqueHtml(a.immatriculation)}</td><td class="petit">${esc(a.zone || "")}</td>
+      <td>${fd(a.date_delivrance)}</td><td>${fd(a.date_fin)}</td><td>${a.statut_effectif === "active" ? (a.jours_restants <= seuilMax() ? `<b style="color:var(--orange)">J-${a.jours_restants}</b>` : `<span class="mut">${a.jours_restants} j</span>`) : ""}</td>
+      <td>${badge(a.statut_effectif)}</td><td class="petit">${a.macaron_imprime_le ? "✅ " + fd(a.macaron_imprime_le) : (a.statut_effectif === "active" && !a.orphelin ? '<b style="color:var(--orange)">À imprimer</b>' : "")}</td></tr>`).join("")}</tbody></table>` : `<div class="vide">Aucune autorisation.</div>`;
+    $$("[data-aut]", c).forEach(t => t.onclick = () => ficheAutorisation(t.dataset.aut));
+  };
+  ["#au-f", "#au-z"].forEach(s => $(s, c).onchange = dessiner); $("#au-q", c).oninput = dessiner;
+  $("#au-ren", c).onclick = imprimerARenouveler;
+  $("#au-imp", c).onclick = () => imprimerListe("Registre des autorisations", ["N°", "Titulaire", "Adresse", "Immatriculation", "Zone", "Délivrée le", "Fin", "Statut"],
+    liste().map(a => [a.numero, nomComplet(a), a.adresse, fPlaque(a.immatriculation), a.zone || "", fd(a.date_delivrance), fd(a.date_fin), LIB[a.statut_effectif]]));
+  $("#au-csv", c).onclick = () => csv(`autorisations-${aujourdhui()}.csv`, ["N°", "Nom", "Prénom", "Adresse", "Téléphone", "Immatriculation", "Marque", "Modèle", "Zone", "Délivrée le", "Fin", "Statut", "Motif", "Renouvellements", "Macaron imprimé le"],
+    liste().map(a => [a.numero, a.orphelin ? "" : a.nom, a.prenom, a.adresse, a.telephone, fPlaque(a.immatriculation), a.marque, a.modele, a.zone, fd(a.date_delivrance), fd(a.date_fin), LIB[a.statut_effectif], a.motif_statut, a.nb_renouvellements, a.macaron_imprime_le ? fd(a.macaron_imprime_le) : ""]));
+  dessiner();
+}
+function ficheAutorisation(id) {
+  const a = S.autos.find(x => x.id === id); if (!a) return;
+  const st = a.statut_effectif, enCours = ["active", "expiree"].includes(a.statut);
+  const lendemain = versDate(a.date_fin); lendemain.setDate(lendemain.getDate() + 1);
+  const debRen = a.date_fin >= aujourdhui() ? iso(lendemain) : aujourdhui();
+  const m = ouvrirModale(`Autorisation ${a.numero}`, `
+    <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start">
+      <div style="text-align:center">${qrSvg(urlControle(a.jeton)).replace("<svg", '<svg class="qr-apercu"')}<div class="petit mut" style="max-width:150px">Le QR code ne contient qu'un identifiant aléatoire, sans donnée personnelle.</div></div>
+      <dl class="fiche-grille" style="flex:1;min-width:260px">
+        <dt>Statut</dt><dd>${badge(st)} ${a.motif_statut ? `<span class="petit mut">${esc(a.motif_statut)}</span>` : ""}</dd>
+        <dt>Titulaire</dt><dd>${a.orphelin ? '<span class="mut">Fiche absente de ce poste</span>' : `<a href="#" id="fa-riv">${esc(nomComplet(a))}</a>`}${demoB(a)}</dd>
+        <dt>Adresse</dt><dd>${esc(a.adresse)} ${esc(a.complement || "")}</dd>
+        <dt>Véhicule</dt><dd>${plaqueHtml(a.immatriculation)} ${esc([a.marque, a.modele, a.couleur].filter(Boolean).join(" "))}</dd>
+        <dt>Zone</dt><dd>${esc(a.zone || "—")}</dd>
+        <dt>Délivrée le</dt><dd>${fd(a.date_delivrance)}</dd>
+        <dt>Fin de validité</dt><dd><b>${fd(a.date_fin)}</b> ${st === "active" ? `<span class="mut">(${a.jours_restants} j)</span>` : ""}</dd>
+        <dt>Renouvellements</dt><dd>${a.nb_renouvellements}</dd>
+        <dt>Macaron</dt><dd>${a.macaron_imprime_le ? "Imprimé le " + fdt(a.macaron_imprime_le) : "Non imprimé"}</dd>
+      </dl></div>`,
+    `${estAdmin() ? `<button class="btn danger" id="fa-sup">Supprimer</button>` : ""}
+     ${a.statut !== "annulee" ? `<button class="btn" id="fa-qr" title="Invalide l'ancien macaron">Régénérer le QR</button>` : ""}
+     ${a.statut === "suspendue" ? `<button class="btn" id="fa-react">Réactiver</button>` : ""}
+     ${a.statut === "active" || a.statut === "expiree" ? `<button class="btn orange" id="fa-susp">Suspendre</button>` : ""}
+     ${a.statut !== "annulee" ? `<button class="btn danger" id="fa-rev">Révoquer</button>` : ""}
+     ${a.statut !== "annulee" && !a.orphelin ? `<button class="btn" id="fa-immat">Changer l'immatriculation</button>` : ""}
+     ${enCours ? `<button class="btn vert" id="fa-ren">Renouveler</button>` : ""}
+     ${st === "active" ? `<button class="btn p" id="fa-mac">🖨 Macaron</button>` : ""}`, { large: true });
+  const act = async (fn, msg) => { try { chargement(true); await fn(); await sauverLocal(); chargement(false); fermerModale(); toast(msg, "ok"); afficherPage(); } catch (e) { chargement(false); erreur(e); } };
+  const l = () => L.liens[a.id] || (L.liens[a.id] = { numero: a.numero });
+  $("#fa-riv", m)?.addEventListener("click", e => { e.preventDefault(); ficheRiverain(a.riverain_id); });
+  $("#fa-mac", m)?.addEventListener("click", () => { fermerModale(); genererMacarons([a.id], "1"); });
+  $("#fa-immat", m)?.addEventListener("click", () => { fermerModale(); changerImmatriculation(a.vehicule_id); });
+  $("#fa-ren", m)?.addEventListener("click", () => {
+    const m2 = ouvrirModale(`Renouveler ${a.numero}`, `<p style="margin-top:0">Fin actuelle : <b>${fd(a.date_fin)}</b>. La nouvelle période commence le ${fd(debRen)}.</p>
+      <div class="champ"><label>Nouvelle date de fin</label><input type="date" id="rn-fin" value="${calculerFin(debRen)}"></div>
+      <p class="mut petit">Pensez à vérifier un justificatif de domicile récent, conformément à l'arrêté. Un nouveau macaron (nouvelle date) devra être imprimé ; le QR code reste identique.</p>`,
+      `<button class="btn" data-fermer>Annuler</button><button class="btn vert" id="rn-ok">Renouveler</button>`);
+    $("#rn-ok", m2).onclick = () => act(async () => { const r = await rpc("sta_renouveler", { p_aut: a.id, p_date_fin: $("#rn-fin", m2).value || null }); majServeur(r); l().macaron_imprime_le = null; l().motif_statut = null; journalLocal("renouvellement", "autorisation", a.numero, { date_fin: r.date_fin }); }, "Autorisation renouvelée. Le macaron est à réimprimer.");
+  });
+  const changer = (statut, motif, msg) => act(async () => { await rpc("sta_changer_statut", { p_aut: a.id, p_statut: statut }); majServeur({ id: a.id, statut }); l().motif_statut = motif || null; journalLocal(statut === "active" ? "réactivation" : statut === "suspendue" ? "suspension" : "révocation", "autorisation", a.numero, motif ? { motif } : null); }, msg);
+  $("#fa-susp", m)?.addEventListener("click", async () => { fermerModale(); const mo = await demander(`Suspendre ${a.numero}`, "Motif de la suspension (conservé sur ce poste uniquement)", { obligatoire: true, ok: "Suspendre" }); if (mo) changer("suspendue", mo, "Autorisation suspendue (ORANGE au contrôle)."); });
+  $("#fa-react", m)?.addEventListener("click", () => changer("active", null, "Autorisation réactivée."));
+  $("#fa-rev", m)?.addEventListener("click", async () => { fermerModale(); const mo = await demander(`Révoquer ${a.numero}`, "Motif de la révocation (conservé sur ce poste uniquement)", { obligatoire: true, danger: true, ok: "Révoquer définitivement", message: "La révocation est <b>définitive</b> : le macaron apparaîtra en ROUGE au contrôle." }); if (mo) changer("annulee", mo, "Autorisation révoquée."); });
+  $("#fa-qr", m)?.addEventListener("click", async () => { fermerModale(); if (await confirmer("Régénérer le QR code", "À utiliser en cas de perte ou de vol du macaron : <b>l'ancien macaron deviendra « inconnu »</b> au scan. Un nouveau macaron devra être imprimé.", { ok: "Régénérer" })) act(async () => { const j = await rpc("sta_regenerer_jeton", { p_aut: a.id }); majServeur({ id: a.id, jeton: j }); l().macaron_imprime_le = null; journalLocal("régénération du QR", "autorisation", a.numero); }, "Nouveau QR code généré. Imprimez le nouveau macaron."); });
+  $("#fa-sup", m)?.addEventListener("click", async () => { fermerModale(); if (await confirmer("Supprimer l'autorisation", `L'autorisation ${esc(a.numero)} sera supprimée du registre (préférez la révocation pour garder une trace).`, { danger: true, ok: "Supprimer", saisie: "SUPPRIMER" })) act(async () => { await req(sb.from("sta_autorisations").delete().eq("id", a.id)); S.serveur = S.serveur.filter(x => x.id !== a.id); delete L.liens[a.id]; journalLocal("suppression", "autorisation", a.numero); }, "Autorisation supprimée."); });
+}
+
+/* =====================================================================
+   6. MACARONS (PDF)
+   ===================================================================== */
+function apercuMacaron(a) {
+  const p = S.params;
+  return `<div class="macaron"><div class="bande"><small>COMMUNE DE</small><b>${esc(p.commune || "PASLY")}</b></div>
+    <div class="titre">${esc(p.mention_macaron || "AUTORISATION RIVERAIN")}</div>${qrSvg(urlControle(a.jeton))}
+    <div class="num">N° ${esc(a.numero)}</div>${p.afficher_plaque_macaron !== false && a.immatriculation ? `<div class="petit">Véhicule : <b>${esc(fPlaque(a.immatriculation))}</b></div>` : ""}
+    <div class="valid"><small>VALABLE JUSQU'AU</small><b>${fd(a.date_fin)}</b></div>
+    <div class="txt">${a.zone ? `Zone : ${esc(a.zone)} — ` : ""}${esc(p.texte_macaron || "")}<br><i>${esc(p.arrete_reference || "")}</i></div></div>`;
+}
+function rendreMacarons(c) {
+  c.innerHTML = `<div class="entete-page"><div><h1>Génération des macarons</h1><div class="mut">Macarons imprimables au format PDF, avec QR code de vérification sécurisée.</div></div></div>
+  <div class="deux-col" style="grid-template-columns:1fr 300px">
+  <div class="carte"><div class="filtres">
+    <div><label>Sélection</label><select id="mc-f"><option value="non">Actives — macaron non imprimé</option><option value="toutes">Toutes les actives</option></select></div>
+    <div><label>Recherche</label><input type="search" id="mc-q" placeholder="N°, titulaire, immatriculation…"></div>
+    <div><label>Format</label><select id="mc-fmt"><option value="4">A4 — 4 macarons par page</option><option value="1">A4 — 1 grand macaron par page</option></select></div></div>
+    <div class="actions" style="margin-bottom:10px"><label class="case"><input type="checkbox" id="mc-tout"> Tout sélectionner</label><span class="mut petit" id="mc-nb"></span>
+      <button class="btn p" id="mc-go" style="margin-left:auto">🖨 Générer le PDF</button></div>
+    <div class="tableau-wrap" id="mc-tab"></div></div>
+  <div class="carte"><h3>Aperçu</h3><div id="mc-apercu" style="display:flex;justify-content:center"><span class="mut petit">Sélectionnez une autorisation.</span></div>
+    <p class="mut petit">Le QR code renvoie vers la page de contrôle de l'application ; il ne contient qu'un identifiant aléatoire. Le macaron ne vaut pas autorisation à lui seul : seule la vérification dans le registre fait foi.</p></div>
+  </div>`;
+  const liste = () => {
+    const f = $("#mc-f", c).value, tl = $("#mc-q", c).value.toLowerCase(), t = normPlaque(tl);
+    return S.autos.filter(a => a.statut_effectif === "active" && (f === "toutes" || !a.macaron_imprime_le) &&
+      (!tl || (t && a.immatriculation.includes(t)) || `${a.numero} ${nomComplet(a)}`.toLowerCase().includes(tl))).sort((a, b) => a.numero.localeCompare(b.numero));
+  };
+  const nbSel = () => { const n = $$("[data-mc]:checked", c).length; $("#mc-nb", c).textContent = `${n} sélectionné(s)`; $("#mc-go", c).disabled = !n; };
+  const dessiner = () => {
+    const l = liste();
+    $("#mc-tab", c).innerHTML = l.length ? `<table><thead><tr><th></th><th>N°</th><th>Titulaire</th><th>Véhicule</th><th>Fin</th><th>Dernière impression</th></tr></thead><tbody>
+      ${l.map(a => `<tr><td><input type="checkbox" data-mc="${a.id}" style="width:18px;height:18px"></td><td><b>${esc(a.numero)}</b>${demoB(a)}</td><td>${a.orphelin ? '<span class="mut">Fiche absente</span>' : esc(nomComplet(a))}</td><td>${plaqueHtml(a.immatriculation)}</td><td>${fd(a.date_fin)}</td><td class="petit">${a.macaron_imprime_le ? fdt(a.macaron_imprime_le) : '<b style="color:var(--orange)">Jamais</b>'}</td></tr>`).join("")}</tbody></table>` : `<div class="vide">Aucun macaron à imprimer.</div>`;
+    $$("[data-mc]", c).forEach(cb => cb.onchange = () => { nbSel(); if (cb.checked) $("#mc-apercu", c).innerHTML = apercuMacaron(S.autos.find(a => a.id === cb.dataset.mc)); });
+    $("#mc-tout", c).checked = false; nbSel();
+    if (l[0]) $("#mc-apercu", c).innerHTML = apercuMacaron(l[0]);
+  };
+  $("#mc-f", c).onchange = dessiner; $("#mc-q", c).oninput = dessiner;
+  $("#mc-tout", c).onchange = e => { $$("[data-mc]", c).forEach(cb => cb.checked = e.target.checked); nbSel(); };
+  $("#mc-go", c).onclick = () => genererMacarons($$("[data-mc]:checked", c).map(cb => cb.dataset.mc), $("#mc-fmt", c).value);
+  dessiner();
+}
+function dessinerMacaron(doc, a, x0, y0, k) {
+  const p = S.params, c1 = hexRgb(p.couleur_principale || "#1d4f8c"), c2 = hexRgb(p.couleur_secondaire || "#c8a23a");
+  const W = 95 * k, H = 138 * k, X = v => x0 + v * k, Y = v => y0 + v * k, cx = x0 + W / 2;
+  const fs = pt => doc.setFontSize(pt * k);
+  doc.setDrawColor(...c1); doc.setLineWidth(.8 * k); doc.roundedRect(x0, y0, W, H, 4 * k, 4 * k, "S");
+  doc.setFillColor(...c1); doc.roundedRect(x0, y0, W, 24 * k, 4 * k, 4 * k, "F"); doc.rect(x0, Y(12), W, 12 * k, "F");
+  doc.setFillColor(...c2); doc.rect(x0, Y(24), W, 1.6 * k, "F");
+  doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "normal"); fs(7); doc.text("COMMUNE DE", cx, Y(7.5), { align: "center" });
+  doc.setFont("helvetica", "bold"); fs(25); doc.text(String(p.commune || "PASLY"), cx, Y(19), { align: "center" });
+  doc.setTextColor(...c1); fs(12.5); doc.text(String(p.mention_macaron || "AUTORISATION RIVERAIN"), cx, Y(32.5), { align: "center" });
+  const q = qrMatrice(urlControle(a.jeton)), n = q.getModuleCount(), taille = 50 * k, cel = taille / n, qx = cx - taille / 2, qy = Y(36);
+  doc.setFillColor(255, 255, 255); doc.rect(qx - 2 * k, qy - 2 * k, taille + 4 * k, taille + 4 * k, "F");
+  doc.setFillColor(0, 0, 0);
+  for (let r = 0; r < n; r++) { let c = 0; while (c < n) { if (q.isDark(r, c)) { let l = 1; while (c + l < n && q.isDark(r, c + l)) l++; doc.rect(qx + c * cel, qy + r * cel, l * cel + .01, cel + .01, "F"); c += l; } else c++; } }
+  doc.setTextColor(20, 24, 32); doc.setFont("helvetica", "bold"); fs(14); doc.text(`N° ${a.numero}`, cx, Y(93), { align: "center" });
+  if (p.afficher_plaque_macaron !== false && a.immatriculation) { doc.setFont("helvetica", "normal"); fs(9.5); doc.text(`Véhicule : ${fPlaque(a.immatriculation)}`, cx, Y(99), { align: "center" }); }
+  const cl = c2.map(v => Math.round(v + (255 - v) * .78));
+  doc.setFillColor(...cl); doc.roundedRect(X(9), Y(102), 77 * k, 13 * k, 2 * k, 2 * k, "F");
+  doc.setTextColor(70, 70, 70); doc.setFont("helvetica", "bold"); fs(6.5); doc.text("VALABLE JUSQU'AU", cx, Y(106.3), { align: "center" });
+  doc.setTextColor(...c1); fs(15); doc.text(fd(a.date_fin), cx, Y(112.6), { align: "center" });
+  doc.setTextColor(60, 60, 60); doc.setFont("helvetica", "normal"); fs(5.8);
+  const lignes = doc.splitTextToSize(`${a.zone ? "Zone : " + a.zone + ". " : ""}${p.texte_macaron || ""}`, 84 * k).slice(0, 3);
+  doc.text(lignes, cx, Y(120), { align: "center", lineHeightFactor: 1.25 });
+  doc.setFont("helvetica", "italic"); fs(5.5); doc.setTextColor(90, 90, 90);
+  doc.text(doc.splitTextToSize(`${p.arrete_reference || ""} — Mairie de Pasly (02200). Contrôle par QR code réservé aux agents habilités.`, 86 * k).slice(0, 2), cx, Y(131), { align: "center", lineHeightFactor: 1.2 });
+}
+async function genererMacarons(ids, format = "4") {
+  const autos = ids.map(id => S.autos.find(a => a.id === id)).filter(a => a && a.statut_effectif === "active");
+  if (!autos.length) return toast("Aucune autorisation active sélectionnée.", "err");
+  const { jsPDF } = window.jspdf; const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+  doc.setProperties({ title: "Macarons — Stationnement Pasly", author: "Mairie de Pasly", creator: "Stationnement Pasly " + VERSION });
+  if (format === "1") {
+    const k = 1.38, w = 95 * k, h = 138 * k;
+    autos.forEach((a, i) => { if (i) doc.addPage(); dessinerMacaron(doc, a, (210 - w) / 2, (297 - h) / 2, k);
+      doc.setFontSize(7); doc.setTextColor(150); doc.text("Découper en suivant le cadre", 105, (297 + h) / 2 + 6, { align: "center" }); });
+  } else {
+    const mx = (210 - 190) / 3, my = (297 - 276) / 3;
+    autos.forEach((a, i) => { if (i && i % 4 === 0) doc.addPage(); const j = i % 4; dessinerMacaron(doc, a, mx + (j % 2) * (95 + mx), my + Math.floor(j / 2) * (138 + my), 1); });
+  }
+  const nom = `macarons-pasly-${aujourdhui()}.pdf`;
+  try { window.open(doc.output("bloburl"), "_blank") || doc.save(nom); } catch { doc.save(nom); }
+  const t = maintenant();
+  autos.forEach(a => { (L.liens[a.id] || (L.liens[a.id] = { numero: a.numero })).macaron_imprime_le = t; });
+  journalLocal("impression de macarons", "autorisation", autos.map(a => a.numero).join(", "));
+  try { await sauverLocal(); if (["macarons", "autorisations"].includes(pageCourante)) afficherPage(); } catch (e) { erreur(e); }
+  toast(`${autos.length} macaron(s) généré(s).`, "ok");
+}
+
+/* =====================================================================
+   7. CONTRÔLE
+   ===================================================================== */
+let scanner = null;
+async function arreterScanner() { if (scanner) { try { await scanner.stop(); } catch { } try { scanner.clear(); } catch { } scanner = null; } }
+function rendreControle(c) {
+  const local = S.moi.role !== "controleur" && L.riverains.length > 0;
+  c.innerHTML = `<div class="ctrl">
+    <h1 style="text-align:center">Contrôle des autorisations</h1>
+    <p class="mut" style="text-align:center;margin-top:0">Scannez le macaron ou saisissez le numéro qui y est imprimé.</p>
+    <button class="btn p gros" id="ct-scan">📷 Scanner le QR code</button>
+    <div id="lecteur" class="cache"></div><button class="btn gros cache" id="ct-stop" style="margin-bottom:10px">Arrêter la caméra</button>
+    <div style="text-align:center;margin:14px 0;color:var(--mut)">— ou —</div>
+    <form id="ct-form" class="saisie-plaque" autocomplete="off"><input type="text" id="ct-num" placeholder="PAS-2026-0001" maxlength="20" autocapitalize="characters" spellcheck="false"><button class="btn p" style="padding:0 20px;font-size:1rem">Vérifier</button></form>
+    ${local ? `<form id="ct-form-p" class="saisie-plaque" autocomplete="off" style="margin-top:10px"><input type="text" id="ct-plaque" placeholder="Immatriculation (poste mairie)" maxlength="12" autocapitalize="characters" spellcheck="false"><button class="btn" style="padding:0 20px;font-size:1rem">Chercher</button></form>
+      <p class="mut petit" style="text-align:center">La recherche par immatriculation n'est possible que sur ce poste, qui détient les fiches.</p>` : ""}
+    <div class="champ" style="margin-top:10px"><label class="petit">Lieu du contrôle (facultatif)</label><input type="text" id="ct-lieu" value="${esc(localStorage.getItem("sta-lieu") || "")}" placeholder="Ex. : rue de l'Église"></div>
+    <div id="ct-res"></div>
+    <div class="carte" style="margin-top:16px"><h3>Mes derniers contrôles</h3><ul class="hist-ctrl" id="ct-hist" style="list-style:none;padding:0;margin:0"></ul></div>
+    <p class="mut petit" style="text-align:center">Le QR code ne constitue pas à lui seul une autorisation : vérifiez que l'immatriculation imprimée sur le macaron correspond au véhicule.</p>
+  </div>`;
+  const lieu = $("#ct-lieu", c); lieu.onchange = () => localStorage.setItem("sta-lieu", lieu.value.trim());
+  $("#ct-form", c).onsubmit = e => { e.preventDefault(); const v = $("#ct-num", c).value.trim(); if (!v) return toast("Saisissez le numéro du macaron.", "err"); verifier("numero", v); $("#ct-num", c).blur(); };
+  if (local) $("#ct-form-p", c).onsubmit = e => {
+    e.preventDefault(); const p = normPlaque($("#ct-plaque", c).value); if (p.length < 2) return toast("Saisissez une immatriculation.", "err");
+    const a = S.autos.filter(x => x.immatriculation === p).sort((x, y) => (["active", "suspendue"].includes(y.statut) - ["active", "suspendue"].includes(x.statut)) || y.date_fin.localeCompare(x.date_fin))[0];
+    if (!a) return afficherResultat({ resultat: "inconnu", recherche: fPlaque(p), controle_le: maintenant() }, "plaque");
+    verifier("numero", a.numero);
+  };
+  $("#ct-scan", c).onclick = demarrerScanner;
+  $("#ct-stop", c).onclick = async () => { await arreterScanner(); $("#lecteur").classList.add("cache"); $("#ct-stop").classList.add("cache"); $("#ct-scan").classList.remove("cache"); };
+  dessinerHistCtrl();
+  const qr = sessionStorage.getItem("sta-qr");
+  if (qr) { sessionStorage.removeItem("sta-qr"); history.replaceState(null, "", location.pathname + location.hash); verifier("qr", qr); }
+}
+async function demarrerScanner() {
+  if (!window.Html5Qrcode) return toast("Lecteur QR indisponible : saisissez le numéro du macaron.", "err");
+  $("#lecteur").classList.remove("cache"); $("#ct-stop").classList.remove("cache"); $("#ct-scan").classList.add("cache"); $("#ct-res").innerHTML = "";
+  try {
+    scanner = new Html5Qrcode("lecteur", { verbose: false });
+    await scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: (w, h) => { const s = Math.floor(Math.min(w, h) * .75); return { width: s, height: s }; } },
+      async texte => { await arreterScanner(); $("#lecteur").classList.add("cache"); $("#ct-stop").classList.add("cache"); $("#ct-scan").classList.remove("cache"); if (navigator.vibrate) navigator.vibrate(120); verifier("qr", texte); }, () => { });
+  } catch (e) {
+    await arreterScanner(); $("#lecteur").classList.add("cache"); $("#ct-stop").classList.add("cache"); $("#ct-scan").classList.remove("cache");
+    toast("Caméra inaccessible : autorisez l'accès à l'appareil photo dans le navigateur (connexion https requise), ou saisissez le numéro.", "err");
+  }
+}
+const ETATS = {
+  valide: { t: "AUTORISATION VALIDE", s: "Stationnement riverain autorisé", i: "✔" },
+  expiree: { t: "AUTORISATION EXPIRÉE", s: "La date de validité est dépassée", i: "✖" },
+  annulee: { t: "AUTORISATION ANNULÉE", s: "Autorisation révoquée par la mairie", i: "✖" },
+  suspendue: { t: "AUTORISATION SUSPENDUE", s: "Autorisation temporairement suspendue", i: "!" },
+  inconnu: { t: "VÉHICULE INCONNU", s: "Aucune autorisation trouvée dans le registre", i: "?" }
+};
+async function verifier(methode, valeur) {
+  const res = $("#ct-res"); if (!res) return;
+  res.innerHTML = `<div style="text-align:center;padding:20px"><div class="rond" style="margin:auto"></div></div>`;
+  try { afficherResultat(await rpc("sta_controler", { p_methode: methode, p_valeur: valeur, p_lieu: ($("#ct-lieu")?.value || "").trim() || null }), methode); }
+  catch (e) { res.innerHTML = ""; erreur(e); }
+}
+function afficherResultat(r, methode) {
+  const res = $("#ct-res"); const e = ETATS[r.resultat] || ETATS.inconnu;
+  const loc = r.id ? S.autos.find(a => a.id === r.id) : null; // présent uniquement sur le poste de la mairie
+  const plaque = loc?.immatriculation || "";
+  const lib = { qr: "QR code", numero: "Numéro", plaque: "Immatriculation" }[methode];
+  const titre = r.resultat === "inconnu" && methode !== "plaque" ? "AUTORISATION INCONNUE" : e.t;
+  res.innerHTML = `<div class="resultat ${esc(r.resultat)}"><div style="font-size:2.6rem;line-height:1">${e.i}</div><div class="etat">${titre}</div><div class="sous">${e.s}</div>
+    <div class="det">${r.resultat === "inconnu" ? `<div><span>${lib}</span><b>${methode === "qr" ? "non reconnu (macaron remplacé, falsifié ou retiré)" : esc(r.recherche)}</b></div>` : `
+      <div><span>N° d'autorisation</span><b>${esc(r.numero)}</b></div>
+      ${plaque ? `<div><span>Immatriculation</span><span class="plaque">${esc(fPlaque(plaque))}</span></div>` : ""}
+      <div><span>Zone</span><b>${esc(r.zone || "—")}</b></div>
+      <div><span>Valable jusqu'au</span><b>${fd(r.date_fin)}</b></div>`}
+      <div><span>Contrôlé le</span><b>${fdt(r.controle_le)}</b></div></div></div>
+    ${r.resultat !== "inconnu" ? `<div class="bandeau info">Vérifiez que le <b>n° ${esc(r.numero)}</b> et l'immatriculation imprimés sur le macaron correspondent au véhicule contrôlé.</div>` : ""}`;
+  S.derniersCtrl.unshift({ h: new Date(), m: methode, v: r.numero || r.recherche || "QR", r: r.resultat }); S.derniersCtrl = S.derniersCtrl.slice(0, 15);
+  dessinerHistCtrl(); res.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+function dessinerHistCtrl() {
+  const u = $("#ct-hist"); if (!u) return;
+  u.innerHTML = S.derniersCtrl.length ? S.derniersCtrl.map(x => `<li><span>${x.h.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} · ${{ qr: "QR", numero: "N°", plaque: "Plaque" }[x.m]} · <b>${esc(x.v)}</b></span>${badge(x.r)}</li>`).join("") : `<li class="mut">Aucun contrôle pendant cette session.</li>`;
+}
+
+/* =====================================================================
+   8. HISTORIQUE
+   ===================================================================== */
+async function rendreHistorique(c, q) {
+  const vue = q.get("vue") === "controles" ? "controles" : "operations";
+  const ilya30 = iso(new Date(Date.now() - 30 * 864e5));
+  c.innerHTML = `<div class="entete-page"><div><h1>Historique</h1><div class="mut">Journal des opérations (registre sur le serveur + fiches sur ce poste) et registre des contrôles.</div></div>
+    <div class="actions"><a class="btn ${vue === "operations" ? "p" : ""}" href="#/historique">Opérations</a><a class="btn ${vue === "controles" ? "p" : ""}" href="#/historique?vue=controles">Contrôles</a></div></div>
+    <div class="carte"><div class="filtres"><div><label>Du</label><input type="date" id="h-du" value="${ilya30}"></div><div><label>Au</label><input type="date" id="h-au" value="${aujourdhui()}"></div>
+    ${vue === "operations" ? `<div><label>Source</label><select id="h-obj"><option value="">Toutes</option><option value="serveur">Registre (serveur)</option><option value="local">Fiches (ce poste)</option></select></div>` :
+      `<div><label>Résultat</label><select id="h-obj"><option value="">Tous</option><option value="valide">Valide</option><option value="expiree">Expirée</option><option value="annulee">Annulée</option><option value="suspendue">Suspendue</option><option value="inconnu">Inconnu</option></select></div>`}
+    <div><label>Recherche</label><input type="search" id="h-q" placeholder="Agent, n°, action…"></div><div><button class="btn p" id="h-go">Afficher</button></div><div style="margin-left:auto"><button class="btn" id="h-csv">Exporter (CSV)</button></div></div>
+    <div class="tableau-wrap" id="h-tab"><div class="vide">Chargement…</div></div></div>`;
+  let lignes = [];
+  const fmtV = v => v == null ? "∅" : typeof v === "object" ? JSON.stringify(v).slice(0, 80) : String(v).slice(0, 80);
+  const resume = d => {
+    if (!d || typeof d !== "object") return "";
+    const k = Object.keys(d);
+    if (k.length && d[k[0]] && typeof d[k[0]] === "object" && "apres" in d[k[0]]) return k.map(x => `<b>${esc(x)}</b> : ${esc(fmtV(d[x].avant))} → ${esc(fmtV(d[x].apres))}`).join("<br>");
+    return k.map(x => `<b>${esc(x)}</b> : ${esc(fmtV(d[x]))}`).join("<br>");
+  };
+  const charger = async () => {
+    const du = $("#h-du", c).value, au = $("#h-au", c).value, obj = $("#h-obj", c).value;
+    const fin = au ? (() => { const d = versDate(au); d.setDate(d.getDate() + 1); return d; })() : null, deb = du ? versDate(du) : null;
+    if (vue === "operations") {
+      let srv = [];
+      if (obj !== "local") { let r = sb.from("sta_journal").select("*").order("horodatage", { ascending: false }).limit(2000); if (deb) r = r.gte("horodatage", deb.toISOString()); if (fin) r = r.lt("horodatage", fin.toISOString()); srv = (await req(r)).map(x => ({ ...x, source: "Registre" })); }
+      const loc = obj === "serveur" ? [] : L.journal.filter(j => (!deb || new Date(j.horodatage) >= deb) && (!fin || new Date(j.horodatage) < fin)).map(x => ({ ...x, source: "Ce poste" }));
+      lignes = [...srv, ...loc].sort((a, b) => b.horodatage.localeCompare(a.horodatage));
+    } else {
+      let r = sb.from("sta_controles").select("*").order("horodatage", { ascending: false }).limit(2000);
+      if (deb) r = r.gte("horodatage", deb.toISOString()); if (fin) r = r.lt("horodatage", fin.toISOString()); if (obj) r = r.eq("resultat", obj);
+      lignes = await req(r);
+    }
+    dessiner();
+  };
+  const filtrees = () => { const t = $("#h-q", c).value.toLowerCase(); return lignes.filter(l => !t || JSON.stringify(l).toLowerCase().includes(t)); };
+  const dessiner = () => {
+    const l = filtrees();
+    $("#h-tab", c).innerHTML = !l.length ? `<div class="vide">Aucune entrée sur la période.</div>` : vue === "operations" ?
+      `<table><thead><tr><th>Date</th><th>Source</th><th>Agent</th><th>Action</th><th>Objet</th><th>Libellé</th><th>Détail</th></tr></thead><tbody>${l.map(x => `<tr><td class="petit">${fdt(x.horodatage)}</td><td class="petit">${esc(x.source)}</td><td>${esc(x.agent_nom || "")}</td><td><b>${esc(x.action)}</b></td><td>${esc(x.objet || "")}</td><td>${esc(x.libelle || "")}</td><td class="petit">${x.action === "création" && x.source === "Registre" ? "" : resume(x.details)}</td></tr>`).join("")}</tbody></table>` :
+      `<table><thead><tr><th>Date</th><th>Agent</th><th>Méthode</th><th>N° / recherche</th><th>Résultat</th><th>Lieu</th></tr></thead><tbody>${l.map(x => `<tr><td class="petit">${fdt(x.horodatage)}</td><td>${esc(x.agent_nom || "")}</td><td>${x.methode === "qr" ? "QR code" : "Numéro"}</td><td>${esc(x.valeur || "")}</td><td>${badge(x.resultat)}</td><td>${esc(x.lieu || "")}</td></tr>`).join("")}</tbody></table>`;
+  };
+  $("#h-go", c).onclick = () => charger().catch(erreur); $("#h-q", c).oninput = dessiner;
+  $("#h-csv", c).onclick = () => vue === "operations"
+    ? csv(`journal-${aujourdhui()}.csv`, ["Date", "Source", "Agent", "Action", "Objet", "Libellé", "Détail"], filtrees().map(x => [fdt(x.horodatage), x.source, x.agent_nom, x.action, x.objet, x.libelle, x.details ? JSON.stringify(x.details) : ""]))
+    : csv(`controles-${aujourdhui()}.csv`, ["Date", "Agent", "Méthode", "N° / recherche", "Résultat", "Lieu"], filtrees().map(x => [fdt(x.horodatage), x.agent_nom, x.methode, x.valeur, LIB[x.resultat], x.lieu]));
+  await charger();
+}
+
+/* =====================================================================
+   9. PARAMÈTRES
+   ===================================================================== */
+async function rendreParametres(c) {
+  const p = S.params, ad = estAdmin(), dis = ad ? "" : "disabled", e = etatStockage();
+  let persiste = null; try { persiste = navigator.storage?.persisted ? await navigator.storage.persisted() : null; } catch { }
+  c.innerHTML = `<div class="entete-page"><div><h1>Paramètres</h1><div class="mut">${ad ? "Règles d'attribution, macaron, données locales, comptes, sauvegardes." : "Consultation des paramètres (modification réservée à l'administrateur)."}</div></div></div>
+  <div class="carte"><h2>Données des riverains — stockées sur ce poste uniquement</h2>
+    <p class="mut petit" style="margin-top:-6px">Noms, adresses, téléphones, véhicules et demandes ne sont jamais envoyés sur le serveur. Ils sont enregistrés dans ce navigateur et, si activé, dans un fichier de l'ordinateur de la mairie.</p>
+    <dl class="fiche-grille" style="margin-bottom:14px"><dt>Contenu</dt><dd>${L.riverains.length} riverain(s), ${L.vehicules.length} véhicule(s), ${L.demandes.length} demande(s)</dd>
+      <dt>Dernière modification</dt><dd>${fdt(L.meta.modifie_le)}</dd>
+      <dt>Fichier automatique</dt><dd>${FICHIER.handle ? `<b>${esc(FICHIER.handle.name)}</b> ${FICHIER.ok ? '<span class="badge b-active">Actif</span>' : '<span class="badge b-en_attente">En pause</span>'} — écrit le ${fdt(L.meta.fichier_ecrit_le)}` : (FICHIER.possible ? '<span class="badge b-en_attente">Non activé</span>' : '<span class="mut">Non disponible dans ce navigateur (utiliser Chrome ou Edge)</span>')}</dd>
+      <dt>Dernière copie exportée</dt><dd>${fdt(L.meta.derniere_copie)}</dd>
+      <dt>Stockage protégé</dt><dd>${persiste ? "Oui (le navigateur ne l'effacera pas de lui-même)" : "Non garanti — activez le fichier automatique ou exportez des copies"}</dd></dl>
+    <div class="actions">
+      ${FICHIER.possible ? (FICHIER.handle && !FICHIER.ok ? `<button class="btn p" data-react-fichier>Réactiver l'enregistrement automatique</button>` : `<button class="btn ${FICHIER.handle ? "" : "p"}" data-choisir-fichier>${FICHIER.handle ? "Changer de fichier automatique…" : "Activer l'enregistrement automatique dans un fichier…"}</button>`) : ""}
+      ${FICHIER.handle ? `<button class="btn" id="dl-delier">Arrêter l'enregistrement automatique</button>` : ""}
+      <button class="btn" data-exporter>Exporter une copie (protégée par mot de passe)</button>
+      ${ad ? `<button class="btn" id="dl-ouvrir">Ouvrir le fichier de données de la mairie…</button><button class="btn danger" id="dl-import">Importer une copie…</button>` : ""}
+    </div>
+    <p class="mut petit">Conseil : placez le fichier automatique dans un dossier de la mairie sauvegardé et protégé (session Windows à mot de passe, disque chiffré BitLocker). Ce poste est le seul à détenir les fiches : pour changer d'ordinateur, ouvrez le même fichier ou importez une copie.</p></div>
+  <form id="f-par" autocomplete="off">
+  <div class="carte"><h2>Règles d'attribution (selon l'arrêté municipal)</h2>
+    <div class="ligne"><div class="champ"><label>Mode de calcul de la validité</label><select id="p-mode" ${dis}><option value="duree" ${p.mode_validite !== "annee_civile" ? "selected" : ""}>Durée à compter de la délivrance</option><option value="annee_civile" ${p.mode_validite === "annee_civile" ? "selected" : ""}>Jusqu'au 31 décembre de l'année</option></select></div>
+      <div class="champ"><label>Durée de validité (mois)</label><input type="number" min="1" max="60" id="p-duree" value="${esc(p.duree_validite_mois ?? 12)}" ${dis}></div>
+      <div class="champ"><label>Autorisations maximum par foyer</label><input type="number" min="1" max="20" id="p-max" value="${esc(p.max_autorisations_foyer ?? 2)}" ${dis}></div>
+      <div class="champ"><label>Alertes (jours avant échéance)</label><input type="text" id="p-alertes" value="${esc((p.alertes_jours || [30, 15, 0]).join(", "))}" ${dis}><div class="aide">Ex. : 30, 15, 0 (0 = jour de l'expiration)</div></div></div>
+    <div class="champ"><label class="case"><input type="checkbox" id="p-justif" ${p.justificatif_obligatoire ? "checked" : ""} ${dis}> Justificatif de domicile obligatoire pour valider une demande</label></div>
+    <div class="ligne"><div class="champ"><label>Zones de stationnement (une par ligne)</label><textarea id="p-zones" ${dis}>${esc((p.zones || []).join("\n"))}</textarea></div>
+      <div class="champ"><label>Types de justificatifs acceptés (un par ligne)</label><textarea id="p-justifs" ${dis}>${esc((p.types_justificatif || []).join("\n"))}</textarea></div></div></div>
+  <div class="carte"><h2>Macaron</h2>
+    <div class="ligne"><div class="champ"><label>Nom de la commune</label><input type="text" id="p-commune" value="${esc(p.commune || "PASLY")}" ${dis}></div>
+      <div class="champ"><label>Mention principale</label><input type="text" id="p-mention" value="${esc(p.mention_macaron || "")}" ${dis}></div>
+      <div class="champ"><label>Préfixe de numérotation</label><input type="text" id="p-prefixe" maxlength="6" value="${esc(p.prefixe_numero || "PAS")}" ${dis}><div class="aide">Numéros : PRÉFIXE-ANNÉE-0001</div></div></div>
+    <div class="ligne"><div class="champ"><label>Référence de l'arrêté municipal</label><input type="text" id="p-arrete" value="${esc(p.arrete_reference || "")}" ${dis}></div>
+      <div class="champ"><label>Couleur principale</label><input type="color" id="p-c1" value="${esc(p.couleur_principale || "#1d4f8c")}" ${dis} style="width:100%;height:40px"></div>
+      <div class="champ"><label>Couleur secondaire</label><input type="color" id="p-c2" value="${esc(p.couleur_secondaire || "#c8a23a")}" ${dis} style="width:100%;height:40px"></div></div>
+    <div class="champ"><label>Texte d'information</label><textarea id="p-texte" ${dis}>${esc(p.texte_macaron || "")}</textarea></div>
+    <div class="ligne"><div class="champ"><label class="case"><input type="checkbox" id="p-plaque" ${p.afficher_plaque_macaron !== false ? "checked" : ""} ${dis}> Imprimer l'immatriculation sur le macaron</label><div class="aide">Recommandé : sur le terrain, c'est le seul moyen de vérifier que le macaron correspond au véhicule.</div></div>
+      <div class="champ" style="grid-column:span 2"><label>Adresse de vérification des QR codes</label><input type="text" id="p-url" value="${esc(p.url_controle || "")}" placeholder="${esc(location.origin + location.pathname)}" ${dis}><div class="aide">Laisser vide pour utiliser l'adresse actuelle de l'application. À fixer avant d'imprimer les premiers macarons définitifs.</div></div></div></div>
+  <div class="carte"><h2>Protection des données (RGPD) — durées de conservation</h2>
+    <div class="ligne"><div class="champ"><label>Journaux des opérations (mois)</label><input type="number" min="6" id="p-cj" value="${esc(p.conservation_journal_mois ?? 36)}" ${dis}></div>
+      <div class="champ"><label>Registre des contrôles (mois)</label><input type="number" min="1" id="p-cc" value="${esc(p.conservation_controles_mois ?? 12)}" ${dis}></div>
+      <div class="champ"><label>Sauvegardes du registre conservées</label><input type="number" min="3" max="52" id="p-cs" value="${esc(p.conservation_sauvegardes ?? 12)}" ${dis}></div></div></div>
+  ${ad ? `<div class="actions" style="justify-content:flex-end;margin-bottom:18px"><button class="btn p" type="submit">Enregistrer les paramètres</button></div>` : ""}
+  </form>
+  <div class="carte"><h2>Mon compte</h2><p>${esc(S.moi.prenom + " " + S.moi.nom)} — ${esc(S.moi.email)} — <span class="badge b-role">${esc(LIB[S.moi.role])}</span></p><button class="btn" id="p-mdp">Changer mon mot de passe</button></div>
+  ${ad ? `<div class="carte"><h2>Comptes des agents</h2><div id="ag-liste">Chargement…</div>
+    <h3 style="margin-top:16px">Créer un compte</h3><form id="f-ag" autocomplete="off"><div class="ligne">
+      <div class="champ"><label class="oblig">Nom</label><input type="text" id="ag-nom"></div><div class="champ"><label>Prénom</label><input type="text" id="ag-prenom"></div>
+      <div class="champ"><label class="oblig">Adresse électronique (identifiant)</label><input type="email" id="ag-mail"></div>
+      <div class="champ"><label class="oblig">Rôle</label><select id="ag-role"><option value="agent">Agent secrétariat</option><option value="controleur">Agent de contrôle</option><option value="admin">Administrateur</option></select></div>
+      <div class="champ"><label class="oblig">Mot de passe provisoire</label><div style="display:flex;gap:6px"><input type="text" id="ag-mdp"><button type="button" class="btn mini" id="ag-gen">Générer</button></div><div class="aide">L'agent devra le changer à sa première connexion.</div></div></div>
+      <button class="btn p" type="submit">Créer le compte</button></form></div>
+  <div class="carte"><h2>Sauvegarde du registre anonyme (serveur)</h2>
+    <p class="mut petit" style="margin-top:-6px">Le registre (n°, codes QR, statuts, dates) est sauvegardé automatiquement chaque dimanche sur le serveur. Il ne contient aucune donnée des riverains.</p>
+    <div class="actions" style="margin-bottom:12px"><button class="btn p" id="sv-now">Sauvegarder maintenant</button><button class="btn" id="sv-fichier">Télécharger le registre (JSON)</button>
+      <label class="btn danger" style="margin:0">Restaurer depuis un fichier…<input type="file" id="sv-import" accept=".json,application/json" class="cache"></label></div>
+    <div id="sv-liste">Chargement…</div></div>
+  <div class="carte"><h2>Données de démonstration</h2><p class="mut petit" style="margin-top:-6px">12 riverains fictifs sur ce poste et 11 autorisations anonymes DEMO-… au registre, couvrant tous les cas (valide, à renouveler, expirée, suspendue, annulée, demandes en attente et refusée). À supprimer avant la mise en production.</p>
+    <div class="actions"><button class="btn" id="demo-charger">Charger / recharger les données fictives</button><button class="btn danger" id="demo-purger">Supprimer les données fictives</button></div></div>` : ""}
+  <p class="mut petit">Stationnement Pasly — version ${VERSION}. Le fonctionnement est paramétrable selon les arrêtés municipaux ; le QR code ne constitue pas à lui seul une autorisation juridique.</p>`;
+  brancherBandeau(c);
+  $("#p-mdp", c).onclick = changerMotDePasse;
+  $("#dl-delier", c)?.addEventListener("click", async () => { if (await confirmer("Arrêter l'enregistrement automatique", "Le fichier n'est pas supprimé, mais il ne sera plus mis à jour.")) delierFichier(); });
+  if (!ad) return;
+  $("#dl-ouvrir", c).onclick = ouvrirFichierDonnees; $("#dl-import", c).onclick = importerCopie;
+  $("#f-par", c).onsubmit = async ev => {
+    ev.preventDefault();
+    const lignesTxt = s => $(s, c).value.split("\n").map(x => x.trim()).filter(Boolean);
+    const alertes = $("#p-alertes", c).value.split(/[,; ]+/).map(Number).filter(n => Number.isFinite(n) && n >= 0);
+    const zones = lignesTxt("#p-zones");
+    if (!zones.length) return toast("Indiquez au moins une zone.", "err");
+    const data = { ...S.params, mode_validite: $("#p-mode", c).value, duree_validite_mois: +$("#p-duree", c).value || 12, max_autorisations_foyer: +$("#p-max", c).value || 1,
+      alertes_jours: alertes.length ? [...new Set(alertes)].sort((a, b) => b - a) : [30, 15, 0], justificatif_obligatoire: $("#p-justif", c).checked, zones, types_justificatif: lignesTxt("#p-justifs"),
+      commune: $("#p-commune", c).value.trim().toUpperCase() || "PASLY", mention_macaron: $("#p-mention", c).value.trim(), prefixe_numero: $("#p-prefixe", c).value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "") || "PAS",
+      arrete_reference: $("#p-arrete", c).value.trim(), couleur_principale: $("#p-c1", c).value, couleur_secondaire: $("#p-c2", c).value, texte_macaron: $("#p-texte", c).value.trim(),
+      afficher_plaque_macaron: $("#p-plaque", c).checked, url_controle: $("#p-url", c).value.trim(),
+      conservation_journal_mois: Math.max(6, +$("#p-cj", c).value || 36), conservation_controles_mois: Math.max(1, +$("#p-cc", c).value || 12), conservation_sauvegardes: Math.min(52, Math.max(3, +$("#p-cs", c).value || 12)) };
+    try { await req(sb.from("sta_parametres").update({ data, updated_at: maintenant() }).eq("id", 1)); toast("Paramètres enregistrés.", "ok"); await rafraichir(); } catch (er) { erreur(er); }
+  };
+  const chargerAgents = async () => {
+    const l = await req(sb.from("sta_agents").select("*").order("nom"));
+    $("#ag-liste", c).innerHTML = `<div class="tableau-wrap"><table><thead><tr><th>Agent</th><th>Identifiant</th><th>Rôle</th><th>État</th><th>Dernière connexion</th><th></th></tr></thead><tbody>
+    ${l.map(a => { const soi = a.user_id === S.moi.user_id; return `<tr><td><b>${esc(a.nom)}</b> ${esc(a.prenom)}</td><td>${esc(a.email)}</td>
+      <td><select style="min-width:170px" data-role="${a.user_id}" ${soi ? "disabled" : ""}>${["admin", "agent", "controleur"].map(r => `<option value="${r}" ${a.role === r ? "selected" : ""}>${LIB[r]}</option>`).join("")}</select></td>
+      <td>${a.actif ? '<span class="badge b-active">Actif</span>' : '<span class="badge b-annulee">Désactivé</span>'}${a.doit_changer_mdp ? ' <span class="badge b-en_attente">MDP provisoire</span>' : ""}</td><td class="petit">${fdt(a.derniere_connexion)}</td>
+      <td class="actions">${soi ? '<span class="mut petit">(vous)</span>' : `<button class="btn mini" data-reinit="${a.user_id}">Réinitialiser le mot de passe</button><button class="btn mini ${a.actif ? "orange" : ""}" data-actif="${a.user_id}" data-val="${!a.actif}">${a.actif ? "Désactiver" : "Réactiver"}</button><button class="btn mini danger" data-retirer="${a.user_id}">Retirer l'accès</button>`}</td></tr>`; }).join("")}</tbody></table></div>`;
+    $$("[data-role]", c).forEach(s => s.onchange = async () => { try { await req(sb.from("sta_agents").update({ role: s.value }).eq("user_id", s.dataset.role)); toast("Rôle modifié.", "ok"); } catch (er) { erreur(er); } });
+    $$("[data-actif]", c).forEach(b => b.onclick = async () => { try { await req(sb.from("sta_agents").update({ actif: b.dataset.val === "true" }).eq("user_id", b.dataset.actif)); await chargerAgents(); } catch (er) { erreur(er); } });
+    $$("[data-retirer]", c).forEach(b => b.onclick = async () => { if (!await confirmer("Retirer l'accès", "L'agent n'aura plus accès à l'application Stationnement (son compte reste utilisable pour les autres applications de la mairie le cas échéant).", { danger: true, ok: "Retirer l'accès" })) return; try { await req(sb.from("sta_agents").delete().eq("user_id", b.dataset.retirer)); await chargerAgents(); } catch (er) { erreur(er); } });
+    $$("[data-reinit]", c).forEach(b => b.onclick = async () => {
+      const mdp = await demander("Réinitialiser le mot de passe", "Nouveau mot de passe provisoire", { valeur: genererMdp(), obligatoire: true, message: "Communiquez ce mot de passe à l'agent ; il devra le changer à sa prochaine connexion. Si ce compte sert aussi pour d'autres applications de la mairie, le mot de passe y changera également." });
+      if (!mdp) return; try { await fonctionAgents({ action: "reinitialiser", user_id: b.dataset.reinit, mot_de_passe: mdp }); toast("Mot de passe réinitialisé.", "ok"); await chargerAgents(); } catch (er) { erreur(er); }
+    });
+  };
+  $("#ag-gen", c).onclick = () => $("#ag-mdp", c).value = genererMdp();
+  $("#f-ag", c).onsubmit = async ev => {
+    ev.preventDefault();
+    const body = { action: "creer", nom: $("#ag-nom", c).value.trim(), prenom: $("#ag-prenom", c).value.trim(), email: $("#ag-mail", c).value.trim(), role: $("#ag-role", c).value, mot_de_passe: $("#ag-mdp", c).value };
+    if (!body.nom || !body.email) return toast("Nom et adresse électronique obligatoires.", "err");
+    try { chargement(true); const r = await fonctionAgents(body); chargement(false);
+      toast(r.existant ? "Compte existant rattaché à l'application (il conserve son mot de passe actuel)." : `Compte créé. Mot de passe provisoire : ${body.mot_de_passe}`, "ok");
+      $("#f-ag", c).reset(); await chargerAgents(); await chargerTout(); } catch (er) { chargement(false); erreur(er); }
+  };
+  const chargerSauv = async () => {
+    const l = await req(sb.from("sta_sauvegardes").select("id,cree_le,type,resume").order("cree_le", { ascending: false }));
+    const LT = { auto: "Automatique", manuelle: "Manuelle", avant_restauration: "Avant restauration" };
+    $("#sv-liste", c).innerHTML = l.length ? `<table><thead><tr><th>Date</th><th>Type</th><th>Contenu</th><th></th></tr></thead><tbody>${l.map(s => `<tr><td>${fdt(s.cree_le)}</td><td>${esc(LT[s.type] || s.type)}</td>
+      <td class="petit">${s.resume ? `${s.resume.autorisations ?? "?"} autorisation(s)` : ""}</td>
+      <td class="actions"><button class="btn mini" data-dl="${s.id}">Télécharger</button><button class="btn mini danger" data-rest="${s.id}">Restaurer</button></td></tr>`).join("")}</tbody></table>` : `<div class="mut">Aucune sauvegarde sur le serveur.</div>`;
+    $$("[data-dl]", c).forEach(b => b.onclick = async () => { try { const s = await req(sb.from("sta_sauvegardes").select("donnees,cree_le").eq("id", b.dataset.dl).single()); telecharger(`registre-stationnement-pasly-${s.cree_le.slice(0, 10)}.json`, JSON.stringify(s.donnees, null, 1)); } catch (er) { erreur(er); } });
+    $$("[data-rest]", c).forEach(b => b.onclick = async () => {
+      if (!await confirmer("Restaurer le registre", "Le registre anonyme (autorisations, numérotation, paramètres) sera remplacé par la sauvegarde. Une sauvegarde de sécurité est créée juste avant. Les fiches des riverains de ce poste ne sont pas modifiées.", { danger: true, ok: "Restaurer", saisie: "RESTAURER" })) return;
+      try { chargement(true); await rpc("sta_restaurer_id", { p_id: +b.dataset.rest }); chargement(false); toast("Restauration effectuée.", "ok"); await rafraichir(); } catch (er) { chargement(false); erreur(er); }
+    });
+  };
+  $("#sv-now", c).onclick = async () => { try { await rpc("sta_sauvegarder", { p_type: "manuelle" }); toast("Sauvegarde créée.", "ok"); await chargerSauv(); } catch (er) { erreur(er); } };
+  $("#sv-fichier", c).onclick = async () => { try { const d = await rpc("sta_exporter"); telecharger(`registre-stationnement-pasly-${aujourdhui()}.json`, JSON.stringify(d, null, 1)); } catch (er) { erreur(er); } };
+  $("#sv-import", c).onchange = async ev => {
+    const f = ev.target.files[0]; ev.target.value = ""; if (!f) return;
+    let d; try { d = JSON.parse(await f.text()); } catch { return toast("Fichier illisible (JSON attendu).", "err"); }
+    if (d.application !== APP_REGISTRE) return toast("Ce fichier n'est pas une sauvegarde du registre.", "err");
+    if (!await confirmer("Restaurer le registre depuis un fichier", `Sauvegarde du <b>${fdt(d.exporte_le)}</b> : ${d.autorisations?.length || 0} autorisation(s). Le registre actuel sera remplacé (sauvegarde de sécurité créée avant).`, { danger: true, ok: "Restaurer", saisie: "RESTAURER" })) return;
+    try { chargement(true); await rpc("sta_restaurer", { p: d }); chargement(false); toast("Restauration effectuée.", "ok"); await rafraichir(); } catch (er) { chargement(false); erreur(er); }
+  };
+  $("#demo-charger", c).onclick = async () => { if (!await confirmer("Données de démonstration", "Charger (ou recharger) les riverains fictifs ? Les données réelles ne sont pas modifiées.")) return; try { chargement(true); await chargerDemo(); chargement(false); toast("Données fictives chargées.", "ok"); await rafraichir(); } catch (er) { chargement(false); erreur(er); } };
+  $("#demo-purger", c).onclick = async () => { if (!await confirmer("Supprimer les données fictives", "Toutes les fiches et autorisations marquées DÉMO seront supprimées. Les données réelles ne sont pas touchées.", { danger: true, ok: "Supprimer" })) return; try { chargement(true); await purgerDemo(); chargement(false); toast("Données fictives supprimées.", "ok"); await rafraichir(); } catch (er) { chargement(false); erreur(er); } };
+  await Promise.all([chargerAgents().catch(erreur), chargerSauv().catch(erreur)]);
+}
+
+/* Démonstration : fiches fictives sur le poste, autorisations anonymes DEMO-… au registre */
+const DEMO = [
+  ["Mme", "DURAND", "Sophie", "3 rue de l'Église", [["DM101PA", "Renault", "Clio", "Gris", "DEMO-001"], ["DM102PA", "Peugeot", "208", "Bleu", "DEMO-001B"]]],
+  ["M.", "LEFEBVRE", "Marc", "12 rue du Moulin", [["DM103PA", "Citroën", "C3", "Blanc", "DEMO-002"]]],
+  ["Mme", "MOREAU", "Isabelle", "5 place de la Mairie", [["DM104PA", "Dacia", "Sandero", "Bleu", "DEMO-003"]]],
+  ["M.", "GIRARD", "Thomas", "8 chemin des Vignes", [["DM105PA", "Volkswagen", "Golf", "Noir", "DEMO-004"]]],
+  ["Mme", "ROUSSEL", "Nadia", "21 rue des Tilleuls", [["DM106PA", "Toyota", "Yaris", "Rouge", "DEMO-005"]]],
+  ["M.", "FONTAINE", "Pierre", "2 rue du Château", [["DM107PA", "Peugeot", "3008", "Gris", "DEMO-006", "Vérification de domicile en cours"]]],
+  ["Mme", "MERCIER", "Julie", "14 rue de l'Église", [["DM108PA", "Renault", "Mégane", "Blanc", "DEMO-007", "Déménagement du titulaire"]]],
+  ["M.", "BLANCHARD", "Hugo", "7 rue des Écoles", [["DM109PA", "Fiat", "500", "Vert", "DEMO-008"]]],
+  ["Mme", "GAUTIER", "Claire", "1 impasse des Lilas", [["DM110PA", "Kia", "Picanto", "Blanc", "DEMO-009"], ["DM111PA", "Ford", "Fiesta", "Gris", "DEMO-009B"]]],
+  ["M.", "PERRIN", "Antoine", "18 rue du Moulin", [["DM112PA", "Skoda", "Fabia", "Gris", "attente"]]],
+  ["Mme", "CHEVALIER", "Laura", "4 rue des Tilleuls", [["DM113PA", "Opel", "Corsa", "Noir", "attente_sans"]]],
+  ["M.", "ROBIN", "Michel", "10 place de la Mairie", [["DM114PA", "Citroën", "Berlingo", "Blanc", "refusee"]]]
+];
+async function purgerDemo() {
+  await rpc("sta_purger_demo");
+  const ids = new Set(L.riverains.filter(r => r.demo).map(r => r.id));
+  L.riverains = L.riverains.filter(r => !r.demo); L.vehicules = L.vehicules.filter(v => !v.demo); L.demandes = L.demandes.filter(d => !d.demo);
+  for (const [k, l] of Object.entries(L.liens)) if (l.demo || ids.has(l.riverain_id)) delete L.liens[k];
+  journalLocal("purge des données fictives", "données locales", ""); await sauverLocal();
+}
+async function chargerDemo() {
+  await purgerDemo();
+  const autos = await rpc("sta_charger_demo"), parNum = Object.fromEntries(autos.map(a => [a.numero, a]));
+  const t = new Date(); let i = 0;
+  for (const [civ, nom, prenom, adr, vls] of DEMO) {
+    const r = { id: uuid(), civilite: civ, nom, prenom, adresse: adr, complement: null, code_postal: "02200", commune: "Pasly", telephone: `06 00 00 00 ${String(++i).padStart(2, "0")}`,
+      email: i % 3 === 1 ? `${prenom.toLowerCase()}.${nom.toLowerCase()}@example.org` : null, notes: null, demo: true, created_at: maintenant(), updated_at: maintenant() };
+    L.riverains.push(r);
+    for (const [pl, ma, mo, co, cas, motif] of vls) {
+      const v = { id: uuid(), riverain_id: r.id, immatriculation: pl, marque: ma, modele: mo, couleur: co, actif: true, demo: true, created_at: maintenant() };
+      L.vehicules.push(v);
+      const d = { id: uuid(), numero: `DEMO-D-${String(L.demandes.filter(x => x.demo).length + 1).padStart(3, "0")}`, riverain_id: r.id, vehicule_id: v.id, type: "premiere",
+        date_reception: iso(new Date(t.getTime() - 2 * 864e5)), justificatif_verifie: cas !== "attente_sans" && cas !== "refusee", justificatif_type: cas === "attente_sans" || cas === "refusee" ? null : "Facture d'énergie (moins de 3 mois)",
+        agent_nom: "Secrétariat (démo)", statut: "en_attente", demo: true, created_at: maintenant() };
+      const a = parNum[cas];
+      if (a) { Object.assign(d, { statut: "validee", date_reception: a.date_delivrance, date_decision: a.date_delivrance, autorisation_id: a.id });
+        L.liens[a.id] = { numero: a.numero, riverain_id: r.id, vehicule_id: v.id, immatriculation: pl, demande_id: d.id, motif_statut: motif || null, macaron_imprime_le: a.numero.endsWith("B") ? null : maintenant(), demo: true }; }
+      else if (cas === "refusee") Object.assign(d, { statut: "refusee", motif_refus: "Adresse située hors du périmètre défini par l'arrêté", date_decision: maintenant() });
+      L.demandes.unshift(d);
+    }
+  }
+  journalLocal("chargement des données fictives", "données locales", ""); await sauverLocal();
+}
+
+async function fonctionAgents(body) {
+  const { data, error } = await sb.functions.invoke("sta-agents", { body });
+  if (error) { let m = error.message; try { const j = await error.context.json(); if (j?.erreur) m = j.erreur; } catch { } throw new Error(m); }
+  if (data?.erreur) throw new Error(data.erreur);
+  return data;
+}
+function genererMdp() {
+  const a = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz", n = "23456789", t = new Uint32Array(12); crypto.getRandomValues(t);
+  let s = ""; for (let i = 0; i < 12; i++) { const src = (i === 4 || i === 9) ? n : a + n; s += src[t[i] % src.length]; }
+  return s;
+}
+const mdpOk = p => p.length >= 10 && /[A-Za-z]/.test(p) && /\d/.test(p);
+function changerMotDePasse() {
+  const m = ouvrirModale("Changer mon mot de passe", `<div class="champ"><label>Nouveau mot de passe</label><input type="password" id="cm1" autocomplete="new-password"></div>
+    <div class="champ"><label>Confirmation</label><input type="password" id="cm2" autocomplete="new-password"></div><p class="mut petit">10 caractères minimum, avec des lettres et des chiffres.</p>`,
+    `<button class="btn" data-fermer>Annuler</button><button class="btn p" id="cm-ok">Enregistrer</button>`);
+  $("#cm-ok", m).onclick = async () => {
+    const a = $("#cm1", m).value, b = $("#cm2", m).value;
+    if (!mdpOk(a)) return toast("Mot de passe trop faible.", "err"); if (a !== b) return toast("Les deux saisies diffèrent.", "err");
+    try { const { error } = await sb.auth.updateUser({ password: a }); if (error) throw error; await rpc("sta_mdp_change"); fermerModale(); toast("Mot de passe modifié.", "ok"); } catch (e) { erreur(e); }
+  };
+}
+
+const RENDUS = { tableau: rendreTableau, demande: rendreDemande, riverains: rendreRiverains, vehicules: rendreVehicules, autorisations: rendreAutorisations,
+  macarons: rendreMacarons, controle: rendreControle, historique: rendreHistorique, parametres: rendreParametres };
+
+/* =====================================================================
+   CONNEXION / SESSION
+   ===================================================================== */
+function montrer(ecran) {
+  ["#ecran-connexion", "#ecran-mdp", "#app"].forEach(s => $(s).classList.add("cache"));
+  $(ecran).classList.remove("cache");
+  $("#ecran-mdp").style.display = ecran === "#ecran-mdp" ? "flex" : "none";
+}
+function afficherConnexion(msg) {
+  S.moi = null; montrer("#ecran-connexion");
+  $("#info-qr").classList.toggle("cache", !sessionStorage.getItem("sta-qr"));
+  const e = $("#cnx-erreur"); e.classList.toggle("cache", !msg); e.textContent = msg || "";
+  setTimeout(() => $("#cnx-email").focus(), 50);
+}
+$("#form-cnx").onsubmit = async e => {
+  e.preventDefault(); const b = $("#cnx-btn"); b.disabled = true; b.textContent = "Connexion…";
+  const { error } = await sb.auth.signInWithPassword({ email: $("#cnx-email").value.trim(), password: $("#cnx-mdp").value });
+  b.disabled = false; b.textContent = "Se connecter";
+  if (error) return afficherConnexion(/invalid/i.test(error.message) ? "Identifiant ou mot de passe incorrect." : messageErreur(error));
+  $("#cnx-mdp").value = "";
+  await apresConnexion();
+};
+async function apresConnexion() {
+  chargement(true);
+  try {
+    const r = await rpc("sta_connexion");
+    if (!r?.autorise) { await sb.auth.signOut(); chargement(false); return afficherConnexion("Ce compte n'est pas habilité pour l'application Stationnement, ou il a été désactivé. Contactez l'administrateur."); }
+    const { data: { user } } = await sb.auth.getUser();
+    S.moi = { ...r, user_id: user.id };
+    if (r.doit_changer_mdp) { chargement(false); montrer("#ecran-mdp"); return; }
+    await demarrerApplication();
+  } catch (e) { chargement(false); afficherConnexion(messageErreur(e)); }
+}
+$("#form-mdp-oblig").onsubmit = async e => {
+  e.preventDefault(); const a = $("#mdp1").value, b = $("#mdp2").value;
+  if (!mdpOk(a)) return toast("Mot de passe trop faible : 10 caractères minimum, lettres et chiffres.", "err");
+  if (a !== b) return toast("Les deux saisies diffèrent.", "err");
+  try { const { error } = await sb.auth.updateUser({ password: a }); if (error) throw error; await rpc("sta_mdp_change"); S.moi.doit_changer_mdp = false; toast("Mot de passe enregistré.", "ok"); await demarrerApplication(); }
+  catch (e2) { erreur(e2); }
+};
+async function demarrerApplication() {
+  chargement(true);
+  const ctrl = S.moi.role === "controleur";
+  document.body.classList.toggle("mode-controle", ctrl);
+  $("#btn-deco2").classList.toggle("cache", !ctrl);
+  try { if (!ctrl) { await chargerTout(); await chargerLocal(); fusionner(); } } catch (e) { chargement(false); return afficherConnexion(messageErreur(e)); }
+  construireMenu(); majPastilles(); montrer("#app"); chargement(false);
+  if (sessionStorage.getItem("sta-qr") && location.hash !== "#/controle") { location.hash = "#/controle"; return; }
+  await afficherPage();
+}
+async function deconnexion(msg) { await arreterScanner(); try { await sb.auth.signOut(); } catch { } document.body.classList.remove("mode-controle"); location.hash = ""; afficherConnexion(msg); }
+$("#btn-deco").onclick = () => deconnexion(); $("#btn-deco2").onclick = () => deconnexion();
+$("#btn-mdp").onclick = changerMotDePasse;
+$("#btn-burger").onclick = () => { $("#menu").classList.add("ouvert"); $("#voile").classList.add("ouvert"); };
+$("#voile").onclick = () => { $("#menu").classList.remove("ouvert"); $("#voile").classList.remove("ouvert"); };
+
+let dernierMouvement = Date.now();
+["click", "keydown", "touchstart", "mousemove"].forEach(ev => document.addEventListener(ev, () => dernierMouvement = Date.now(), { passive: true }));
+setInterval(() => { if (S.moi && Date.now() - dernierMouvement > DELAI_INACTIVITE_MIN * 60000) deconnexion(`Déconnexion automatique après ${DELAI_INACTIVITE_MIN} minutes d'inactivité.`); }, 30000);
+
+(async function init() {
+  const prm = new URLSearchParams(location.search);
+  if (prm.get("c")) { sessionStorage.setItem("sta-qr", prm.get("c")); history.replaceState(null, "", location.pathname + "#/controle"); }
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) await apresConnexion(); else afficherConnexion();
+})();
+</script>
+</body>
+</html>
